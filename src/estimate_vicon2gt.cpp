@@ -42,6 +42,7 @@
 #include <sensor_msgs/Image.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TransformStamped.h>
 
 
 #include "meas/Propagator.h"
@@ -54,8 +55,7 @@ int main(int argc, char** argv)
 
     // Start up
     ros::init(argc, argv, "estimate_vicon2gt");
-    ros::NodeHandle nh;
-    ros::NodeHandle nhPrivate("~");
+    ros::NodeHandle nh("~");
 
     // Load the imu, camera, and vicon topics
     std::string topic_imu, topic_cam, topic_vicon;
@@ -64,10 +64,17 @@ int main(int argc, char** argv)
     nh.param<std::string>("topic_vicon", topic_vicon, "/vicon/ironsides/odom");
 
     // Load the bag path
-    std::string path_to_bag;
-    //nh.param<std::string>("path_bag", path_to_bag, "/home/patrick/datasets/ARL/ironsides_tracking/2019-02-22-12-03-15.bag");
-    nh.param<std::string>("path_bag", path_to_bag, "/home/patrick/datasets/ARL/cyclops/2019-02-22-14-33-37.bag");
-    ROS_INFO("ros bag path is: %s", path_to_bag.c_str());
+    bool save2file;
+    std::string path_to_bag, path_states, path_info;
+    nh.param<std::string>("path_bag", path_to_bag, "/home/patrick/datasets/ARL/ironsides_tracking/2019-02-22-12-03-15.bag");
+    nh.param<std::string>("stats_path_states", path_states, "gt_states.csv");
+    nh.param<std::string>("stats_path_info", path_info, "vicon2gt_info.txt");
+    nh.param<bool>("save2file", save2file, false);
+    ROS_INFO("rosbag information...");
+    ROS_INFO("    - bag path: %s", path_to_bag.c_str());
+    ROS_INFO("    - state path: %s", path_states.c_str());
+    ROS_INFO("    - info path: %s", path_info.c_str());
+    ROS_INFO("    - save to file: %d", (int)save2file);
 
     // Get our start location and how much of the bag we want to play
     // Make the bag duration < 0 to just process to the end of the bag
@@ -124,6 +131,19 @@ int main(int argc, char** argv)
     nh.param<double>("gyroscope_random_walk", sigma_wb, 1.9393e-05);
     nh.param<double>("accelerometer_random_walk", sigma_ab, 3.0000e-03);
 
+    // Vicon sigmas (used if we don't have odometry messages)
+    Eigen::Matrix<double,3,3> R_q = Eigen::Matrix<double,3,3>::Zero();
+    Eigen::Matrix<double,3,3> R_p = Eigen::Matrix<double,3,3>::Zero();
+    std::vector<double> viconsigmas;
+    std::vector<double> viconsigmas_default = {1e-4,1e-4,1e-4,1e-5,1e-5,1e-5};
+    nh.param<std::vector<double>>("vicon_sigmas", viconsigmas, viconsigmas_default);
+    R_q(0,0) = std::pow(viconsigmas.at(0),2);
+    R_q(1,1) = std::pow(viconsigmas.at(1),2);
+    R_q(2,2) = std::pow(viconsigmas.at(2),2);
+    R_p(0,0) = std::pow(viconsigmas.at(3),2);
+    R_p(1,1) = std::pow(viconsigmas.at(4),2);
+    R_p(2,2) = std::pow(viconsigmas.at(5),2);
+
 
     //===================================================================================
     //===================================================================================
@@ -149,7 +169,7 @@ int main(int argc, char** argv)
         // Handle IMU messages
         sensor_msgs::Imu::ConstPtr s0 = m.instantiate<sensor_msgs::Imu>();
         if (s0 != NULL && m.getTopic() == topic_imu) {
-            Eigen::Matrix<double, 3, 1> wm, am;
+            Eigen::Matrix<double,3,1> wm, am;
             wm << s0->angular_velocity.x, s0->angular_velocity.y, s0->angular_velocity.z;
             am << s0->linear_acceleration.x, s0->linear_acceleration.y, s0->linear_acceleration.z;
             propagator->feed_imu(s0->header.stamp.toSec(),wm,am);
@@ -167,8 +187,8 @@ int main(int argc, char** argv)
         nav_msgs::Odometry::ConstPtr s2 = m.instantiate<nav_msgs::Odometry>();
         if (s2 != NULL && m.getTopic() == topic_vicon) {
             // load orientation and position of the vicon
-            Eigen::Matrix<double, 4, 1> q;
-            Eigen::Matrix<double, 3, 1> p;
+            Eigen::Matrix<double,4,1> q;
+            Eigen::Matrix<double,3,1> p;
             q << s2->pose.pose.orientation.x,s2->pose.pose.orientation.y,s2->pose.pose.orientation.z,s2->pose.pose.orientation.w;
             p << s2->pose.pose.position.x,s2->pose.pose.position.y,s2->pose.pose.position.z;
             // load the covariance of the pose (order=x,y,z,rx,ry,rz) stored row-major
@@ -184,6 +204,33 @@ int main(int argc, char** argv)
             ct_vic++;
         }
 
+        // Handle VICON messages
+        geometry_msgs::TransformStamped::ConstPtr s3 = m.instantiate<geometry_msgs::TransformStamped>();
+        if (s3 != NULL && m.getTopic() == topic_vicon) {
+            // load orientation and position of the vicon
+            Eigen::Matrix<double,4,1> q;
+            Eigen::Matrix<double,3,1> p;
+            q << s3->transform.rotation.x,s3->transform.rotation.y,s3->transform.rotation.z,s3->transform.rotation.w;
+            p << s3->transform.translation.x,s3->transform.translation.y,s3->transform.translation.z;
+            // feed it!
+            interpolator->feed_pose(s3->header.stamp.toSec(),q,p,R_q,R_p);
+            ct_vic++;
+        }
+
+        // Handle VICON messages
+        geometry_msgs::PoseStamped::ConstPtr s4 = m.instantiate<geometry_msgs::PoseStamped>();
+        if (s4 != NULL && m.getTopic() == topic_vicon) {
+            // load orientation and position of the vicon
+            Eigen::Matrix<double,4,1> q;
+            Eigen::Matrix<double,3,1> p;
+            q << s4->pose.orientation.x,s4->pose.orientation.y,s4->pose.orientation.z,s4->pose.orientation.w;
+            p << s4->pose.position.x,s4->pose.position.y,s4->pose.position.z;
+            // feed it!
+            interpolator->feed_pose(s4->header.stamp.toSec(),q,p,R_q,R_p);
+            ct_vic++;
+        }
+
+
     }
 
     // Print out how many we have loaded
@@ -192,15 +239,15 @@ int main(int argc, char** argv)
     ROS_INFO("    - number cam   = %d",ct_cam);
     ROS_INFO("    - number vicon = %d",ct_vic);
 
-
-
     // Create the graph problem, and solve it
     ViconGraphSolver solver(nh,propagator,interpolator,timestamp_cameras);
     solver.build_and_solve();
 
 
-    // TODO: finally, save to file all the information
-
+    // Finally, save to file all the information
+    if(save2file) {
+        solver.write_to_file(path_states,path_info);
+    }
 
 
     // Done!

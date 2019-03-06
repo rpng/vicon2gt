@@ -49,6 +49,10 @@
 #include "utils/quat_ops.h"
 
 
+#include <boost/filesystem.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
+
+
 using namespace std;
 using namespace gtsam;
 
@@ -73,8 +77,8 @@ public:
     // Build the graph and solve it
     void build_and_solve();
 
-    // TODO: return functions to get final data variables
-    // void get_states(std::vector<double>& timestamps, std::vector<Eigen::Matrix<double,15,1>>& imustates);
+    // Will export the graph to csv file (will be in eth format)
+    void write_to_file(std::string csvfilepath, std::string infofilepath);
 
 
 
@@ -97,6 +101,9 @@ private:
     // Also have all nodes in the graph
     gtsam::NonlinearFactorGraph* graph;
     gtsam::Values values;
+
+    // Optmized values
+    gtsam::Values result_values;
 
     // New factors that have not been optimized yet
     // New nodes that have not been optimized

@@ -112,12 +112,17 @@ void ViconGraphSolver::build_and_solve() {
         std::exit(EXIT_FAILURE);
     }
 
+    // Clear old states and factors
+    map_states.clear();
+    values.clear();
+    values_new.clear();
+    graph->erase(graph->begin(), graph->end());
+    graph_new->erase(graph_new->begin(), graph_new->end());
 
     // Create map of the state timestamps to their IDs
     for(size_t i=0; i<timestamp_cameras.size(); i++) {
         map_states.insert({timestamp_cameras.at(i),i});
     }
-
 
     // Create gravity and calibration nodes and insert them
     values.insert(C(0), Rot3(init_R_BtoI));
@@ -129,6 +134,7 @@ void ViconGraphSolver::build_and_solve() {
 
 
     // Loop through each camera time and construct the graph
+    ROS_INFO("building the graph (might take a while)");
     auto it1 = timestamp_cameras.begin();
     while(it1 != timestamp_cameras.end()) {
 
@@ -222,12 +228,15 @@ void ViconGraphSolver::build_and_solve() {
     LevenbergMarquardtParams config;
     config.verbosity = NonlinearOptimizerParams::Verbosity::TERMINATION;
     config.verbosityLM = LevenbergMarquardtParams::VerbosityLM::SUMMARY;
+    config.setAbsoluteErrorTol(1e-20);
     config.setRelativeErrorTol(1e-30);
+    config.setlambdaUpperBound(1e20);
+    config.setMaxIterations(100);
     LevenbergMarquardtOptimizer optimizer(*graph, values, config);
 
     // Perform the optimization
     ROS_INFO("[VICON-GRAPH]: begin optimization");
-    gtsam::Values result_values = optimizer.optimize();
+    result_values = optimizer.optimize();
     ROS_INFO("[VICON-GRAPH]: done optimization (%d iterations)!", (int) optimizer.iterations());
     rT3 = boost::posix_time::microsec_clock::local_time();
 
@@ -242,14 +251,78 @@ void ViconGraphSolver::build_and_solve() {
     cout << endl << "======================================" << endl;
     cout << "state_0: " << endl << result_values.at<JPLNavState>(X(map_states[timestamp_cameras.at(0)])) << endl;
     cout << "state_N: " << endl << result_values.at<JPLNavState>(X(map_states[timestamp_cameras.at(timestamp_cameras.size()-1)])) << endl;
-    cout << "R_BtoI: " << result_values.at<Rot3>(C(0)) << endl;
+    cout << "R_BtoI: " << endl << result_values.at<Rot3>(C(0)).matrix() << endl << endl;
     cout << "p_BinI: " << endl << result_values.at<Vector3>(C(1)) << endl << endl;
     cout << "gravity: " << endl << result_values.at<Vector3>(G(0)) << endl << endl;
     cout << "gravity norm: " << endl << result_values.at<Vector3>(G(0)).norm() << endl;
-    cout << "======================================" << endl;
+    cout << "======================================" << endl << endl;
 
 
 }
+
+
+
+
+
+/**
+ * This will export the estimate IMU states and final information to file
+ * The CSV file will be in the eth format:
+ * (time(ns),px,py,pz,qw,qx,qy,qz,vx,vy,vz,bwx,bwy,bwz,bax,bay,baz)
+ */
+void ViconGraphSolver::write_to_file(std::string csvfilepath, std::string infofilepath) {
+
+    // Debug info
+    ROS_INFO("saving states and info to file");
+
+    // If the file exists, then delete it
+    if (boost::filesystem::exists(csvfilepath)) {
+        boost::filesystem::remove(csvfilepath);
+        ROS_INFO("    - old state file found, deleted...");
+    }
+    if (boost::filesystem::exists(infofilepath)) {
+        boost::filesystem::remove(infofilepath);
+        ROS_INFO("    - old info file found, deleted...");
+    }
+    // Create the directory that we will open the file in
+    boost::filesystem::path p1(csvfilepath);
+    boost::filesystem::create_directories(p1.parent_path());
+    boost::filesystem::path p2(infofilepath);
+    boost::filesystem::create_directories(p2.parent_path());
+
+    // Open our state file!
+    std::ofstream of_state;
+    of_state.open(csvfilepath, std::ofstream::out | std::ofstream::app);
+    of_state << "#time(ns),px,py,pz,qw,qx,qy,qz,vx,vy,vz,bwx,bwy,bwz,bax,bay,baz" << std::endl;
+
+    // Loop through all states, and
+    for(size_t i=0; i<timestamp_cameras.size(); i++) {
+        // get this state at this timestep
+        JPLNavState state = result_values.at<JPLNavState>(X(map_states[timestamp_cameras.at(i)]));
+        // export to file
+        // (time(ns),px,py,pz,qw,qx,qy,qz,vx,vy,vz,bwx,bwy,bwz,bax,bay,baz)
+        of_state << (uint32_t)(1e9*timestamp_cameras.at(i)) << ","
+                 << std::setprecision(6)
+                 << state.p()(0,0) << ","<< state.p()(1,0) << ","<< state.p()(2,0) << ","
+                 << state.q()(3,0) << "," << state.q()(0,0) << "," << state.q()(1,0) << "," << state.q()(2,0) << ","
+                 << state.v()(0,0) << "," << state.v()(1,0) << "," << state.v()(2,0) << ","
+                 << state.bg()(0,0) << "," << state.bg()(1,0) << "," << state.bg()(2,0) << ","
+                 << state.ba()(0,0) << "," << state.ba()(1,0) << "," << state.ba()(2,0) << std::endl;
+    }
+    of_state.close();
+
+
+    // Save calibration and the such to file
+    std::ofstream of_info;
+    of_info.open(infofilepath, std::ofstream::out | std::ofstream::app);
+    of_info << "R_BtoI: " << endl << result_values.at<Rot3>(C(0)).matrix() << endl << endl ;
+    of_info << "q_BtoI: " << endl << rot_2_quat(result_values.at<Rot3>(C(0)).matrix()) << endl << endl;
+    of_info << "p_BinI: " << endl << result_values.at<Vector3>(C(1)) << endl << endl;
+    of_info << "gravity: " << endl << result_values.at<Vector3>(G(0)) << endl << endl;
+    of_info << "gravity norm: " << endl << result_values.at<Vector3>(G(0)).norm() << endl;
+    of_info.close();
+
+}
+
 
 
 

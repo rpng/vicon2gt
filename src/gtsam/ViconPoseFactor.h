@@ -58,7 +58,8 @@ namespace gtsam {
 
         /// Construct from the two linking JPLNavStates, preingration measurement, and its covariance
         ViconPoseFactor(Key kstate, Key kR_BtoI, Key kp_BinI, Eigen::Matrix<double,6,6> covariance, JPLQuaternion q_VtoB, Vector3 p_BinV) :
-                NoiseModelFactor3<JPLNavState, Rot3, Vector3>(noiseModel::Gaussian::Covariance(covariance), kstate, kR_BtoI, kp_BinI) {
+                //NoiseModelFactor3<JPLNavState, Rot3, Vector3>(noiseModel::Gaussian::Covariance(covariance), kstate, kR_BtoI, kp_BinI) {
+                NoiseModelFactor3<JPLNavState, Rot3, Vector3>(noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(1.345), noiseModel::Gaussian::Covariance(covariance)), kstate, kR_BtoI, kp_BinI) {
             this->mq_VtoB = q_VtoB;
             this->mp_BinV = p_BinV;
         }
