@@ -3,6 +3,11 @@
 
 Uses Vicon as groundtruth and calculates the IMU state (full 15 dof) at each camera time.
 Used to get groundtruth trajectories simular to those provided by the EurocMav dataset.
+To run please take a look at the example launch files.
+You need have a bag dataset that has the IMU, camera, and Vicon measurements in it.
+The Vicon can publish either `nav_msgs/Odometry`, `geometry_msgs/PoseStamped`, or `geometry_msgs/TransformStamped`.
+If you are using the odometry topic it will use the provided covariance, otherwise it will use the one specified in the launch file.
+If the system has trouble converging, consider fixing the magnitude of gravity or checking that your noise levels are correct.
 Documentation and derivations are forthcoming.
 
 
