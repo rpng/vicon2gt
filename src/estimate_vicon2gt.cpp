@@ -196,8 +196,10 @@ int main(int argc, char** argv)
 
 
 
+    // TODO: solve that graph problem
 
 
+    // TODO: finally, save to file all the information
 
 
     // Done!

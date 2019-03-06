@@ -17,8 +17,8 @@ sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB
 sudo sh -c 'echo deb https://apt.repos.intel.com/mkl all main > /etc/apt/sources.list.d/intel-mkl.list'
 sudo sh -c 'echo deb https://apt.repos.intel.com/tbb all main > /etc/apt/sources.list.d/intel-tbb.list'
 sudo apt-get update
-sudo apt-get install intel-mkl-2018.1-038 intel-mkl-2019.2-057
-sudo apt-get install intel-tbb-2018.0-033
+sudo apt-get install intel-mkl-2019.2-057
+sudo apt-get install intel-tbb-2019.4-062
 ```
 
 Then we can build GTSAM as normal and install it globally on our system.
