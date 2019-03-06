@@ -161,7 +161,7 @@ bool Propagator::propagate(double time0, double time1, Eigen::Matrix<double,3,1>
     //===================================================================================
 
     // Create our IMU measurement between the current state time, and the update time
-    integration = CpiV1(sigma_w, sigma_wb, sigma_a, sigma_ab, false);
+    integration = CpiV1(sigma_w, sigma_wb, sigma_a, sigma_ab, true);
 
     // CPI linearization points
     integration.setLinearizationPoints(bg_lin,ba_lin);

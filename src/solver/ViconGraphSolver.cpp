@@ -44,7 +44,6 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, Propagator* propagator,
 
     // Initalize our graphs
     this->graph = new gtsam::NonlinearFactorGraph();
-    this->graph_new = new gtsam::NonlinearFactorGraph();
 
     // Load gravity in vicon frame
     std::vector<double> vec_gravity;
@@ -73,6 +72,10 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, Propagator* propagator,
     nh.param<bool>("enforce_grav_mag", enforce_grav_mag, false);
     cout << "enforce_grav_mag: " << (int)enforce_grav_mag << endl;
 
+    // Number of times we relinearize
+    nh.param<int>("num_loop_relin", num_loop_relin, 0);
+    cout << "num_loop_relin: " << num_loop_relin << endl;
+
 
 }
 
@@ -84,9 +87,6 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, Propagator* propagator,
  * This function will take a while, but handles the GTSAM optimization
  */
 void ViconGraphSolver::build_and_solve() {
-
-    // Start timing
-    rT1 =  boost::posix_time::microsec_clock::local_time();
 
     // Ensure we have enough measurements
     if(timestamp_cameras.empty()) {
@@ -116,158 +116,47 @@ void ViconGraphSolver::build_and_solve() {
         std::exit(EXIT_FAILURE);
     }
 
-    // Clear old states and factors
+    // Clear old states
     map_states.clear();
     values.clear();
-    values_new.clear();
-    graph->erase(graph->begin(), graph->end());
-    graph_new->erase(graph_new->begin(), graph_new->end());
 
     // Create map of the state timestamps to their IDs
     for(size_t i=0; i<timestamp_cameras.size(); i++) {
         map_states.insert({timestamp_cameras.at(i),i});
     }
 
-    // Create gravity and calibration nodes and insert them
-    values.insert(C(0), Rot3(init_R_BtoI));
-    values_new.insert(C(0), Rot3(init_R_BtoI));
-    values.insert(C(1), Vector3(init_p_BinI));
-    values_new.insert(C(1), Vector3(init_p_BinI));
-    values.insert(G(0), Vector3(init_grav_inV));
-    values_new.insert(G(0), Vector3(init_grav_inV));
 
+    // Loop a specified number of times, and keep solving the problem
+    // One would want this if you want to relinearize the bias estimates in CPI
+    bool is_first_time = true;
+    for(int i=0; i<=num_loop_relin; i++) {
 
-    // If enforcing gravity magnitude, then add that prior factor here
-    if(enforce_grav_mag) {
-        Vector1 sigma;
-        sigma(0,0) = 1e-10;
-        MagnitudePrior factor_gav(G(0),sigma,init_grav_inV.norm());
-        graph->add(factor_gav);
-        graph_new->add(factor_gav);
-    }
+        // Build the problem
+        build_problem(is_first_time);
+        is_first_time = false;
 
-    // Loop through each camera time and construct the graph
-    ROS_INFO("building the graph (might take a while)");
-    auto it1 = timestamp_cameras.begin();
-    while(it1 != timestamp_cameras.end()) {
+        // optimize the graph.
+        optimize_problem();
 
-        // If ros is wants us to stop, break out
-        if (!ros::ok())
-            break;
+        // move values forward in time
+        values = values_result;
 
-        // Current image time
-        double timestamp = *it1;
-
-        // First get the vicon pose at the current time
-        Eigen::Matrix<double,4,1> q_VtoB;
-        Eigen::Matrix<double,3,1> p_BinV;
-        Eigen::Matrix<double,6,6> R_vicon;
-        bool has_vicon = interpolator->get_pose(timestamp,q_VtoB,p_BinV,R_vicon);
-
-        // Skip if we don't have a vicon measurement for this pose
-        if(!has_vicon) {
-            ROS_INFO("skipping vicon time %.9f (no vicon pose found)",timestamp);
-            it1 = timestamp_cameras.erase(it1);
-            continue;
-        }
-
-        // Check if we can do the inverse
-        if(std::isnan(R_vicon.norm()) || std::isnan(R_vicon.inverse().norm())) {
-            ROS_INFO("skipping vicon time %.9f (R.norm = %.3f | Rinv.norm = %.3f)",timestamp,R_vicon.norm(),R_vicon.inverse().norm());
-            it1 = timestamp_cameras.erase(it1);
-            continue;
-        }
-
-        // Now initialize the current pose of the IMU
-        Eigen::Matrix<double,4,1> q_VtoI = quat_multiply(rot_2_quat(init_R_BtoI),q_VtoB);
-        Eigen::Matrix<double,3,1> bg = Eigen::Matrix<double,3,1>::Zero();
-        Eigen::Matrix<double,3,1> v_IinV = Eigen::Matrix<double,3,1>::Zero();
-        Eigen::Matrix<double,3,1> ba = Eigen::Matrix<double,3,1>::Zero();
-        Eigen::Matrix<double,3,1> p_IinV = p_BinV - quat_2_Rot(Inv(q_VtoB))*init_R_BtoI.transpose()*init_p_BinI;
-        JPLNavState imu_state(q_VtoI, bg, v_IinV, ba, p_IinV);
-        values.insert(X(map_states[timestamp]), imu_state);
-        values_new.insert(X(map_states[timestamp]), imu_state);
-
-        // Add the vicon measurement to this pose
-        ViconPoseFactor factor_vicon(X(map_states[timestamp]),C(0),C(1),R_vicon,q_VtoB,p_BinV);
-        graph->add(factor_vicon);
-        graph_new->add(factor_vicon);
-
-        // Skip the first ever pose
-        if(it1 == timestamp_cameras.begin()) {
-            it1++;
-            continue;
-        }
-
-        // Now add preintegration between this state and the next
-        // We do a silly hack since inside of the propagator we create the preintegrator
-        // So we just randomly assign noises here which will be overwritten in the propagator
-        double time0 = *(it1-1);
-        double time1 = *(it1);
-        CpiV1 preint(0,0,0,0,false);
-        bool has_imu = propagator->propagate(time0,time1,bg,ba,preint);
-        assert(has_imu);
-        assert(preint.DT==(time1-time0));
-
-        //cout << "dt = " << preint.DT << " | dt_times = " << time1-time0 << endl;
-        //cout << "q_k2tau = " << preint.q_k2tau.transpose() << endl;
-        //cout << "alpha_tau = " << preint.alpha_tau.transpose() << endl;
-        //cout << "beta_tau = " << preint.beta_tau.transpose() << endl;
-
-        // Check if we can do the inverse
-        if(std::isnan(preint.P_meas.norm()) || std::isnan(preint.P_meas.inverse().norm())) {
-            ROS_ERROR("R_imu is NAN | R.norm = %.3f | Rinv.norm = %.3f",preint.P_meas.norm(),preint.P_meas.inverse().norm());
-            ROS_ERROR("THIS SHOULD NEVER HAPPEN!@#!@#!@#!@#!#@");
-        }
-
-        // Now create the IMU factor
-        ImuFactorCPIv1 factor_imu(X(map_states[time0]),X(map_states[time1]),G(0),preint.P_meas,preint.DT,preint.alpha_tau,preint.beta_tau,
-                                  preint.q_k2tau,preint.b_a_lin,preint.b_w_lin,preint.J_q,preint.J_b,preint.J_a,preint.H_b,preint.H_a);
-        graph->add(factor_imu);
-        graph_new->add(factor_imu);
-
-        // Finally, move forward in time!
-        it1++;
+        // Now print timing statistics
+        ROS_INFO("\u001b[34m[TIME]: %.4f to build\u001b[0m",(rT2-rT1).total_microseconds() * 1e-6);
+        ROS_INFO("\u001b[34m[TIME]: %.4f to optimize\u001b[0m",(rT3-rT2).total_microseconds() * 1e-6);
+        ROS_INFO("\u001b[34m[TIME]: %.4f total (loop %d)\u001b[0m",(rT3-rT1).total_microseconds() * 1e-6,i);
 
     }
-    rT2 =  boost::posix_time::microsec_clock::local_time();
-
-
-    // Debug
-    ROS_INFO("[VICON-GRAPH]: graph factors - %d", (int) graph->nrFactors());
-    ROS_INFO("[VICON-GRAPH]: graph nodes - %d", (int) graph->keys().size());
-
-    // Setup the optimizer
-    LevenbergMarquardtParams config;
-    config.verbosity = NonlinearOptimizerParams::Verbosity::TERMINATION;
-    config.verbosityLM = LevenbergMarquardtParams::VerbosityLM::SUMMARY;
-    config.setAbsoluteErrorTol(1e-20);
-    config.setRelativeErrorTol(1e-30);
-    config.setlambdaUpperBound(1e20);
-    config.setMaxIterations(100);
-    LevenbergMarquardtOptimizer optimizer(*graph, values, config);
-
-    // Perform the optimization
-    ROS_INFO("[VICON-GRAPH]: begin optimization");
-    result_values = optimizer.optimize();
-    ROS_INFO("[VICON-GRAPH]: done optimization (%d iterations)!", (int) optimizer.iterations());
-    rT3 = boost::posix_time::microsec_clock::local_time();
-
-
-    // Now print timing statistics
-    ROS_INFO("\u001b[34m[TIME]: %.4f to build\u001b[0m",(rT2-rT1).total_microseconds() * 1e-6);
-    ROS_INFO("\u001b[34m[TIME]: %.4f to optimize\u001b[0m",(rT3-rT2).total_microseconds() * 1e-6);
-    ROS_INFO("\u001b[34m[TIME]: %.4f total\u001b[0m",(rT3-rT1).total_microseconds() * 1e-6);
 
 
     // Debug print results...
     cout << endl << "======================================" << endl;
-    cout << "state_0: " << endl << result_values.at<JPLNavState>(X(map_states[timestamp_cameras.at(0)])) << endl;
-    cout << "state_N: " << endl << result_values.at<JPLNavState>(X(map_states[timestamp_cameras.at(timestamp_cameras.size()-1)])) << endl;
-    cout << "R_BtoI: " << endl << result_values.at<Rot3>(C(0)).matrix() << endl << endl;
-    cout << "p_BinI: " << endl << result_values.at<Vector3>(C(1)) << endl << endl;
-    cout << "gravity: " << endl << result_values.at<Vector3>(G(0)) << endl << endl;
-    cout << "gravity norm: " << endl << result_values.at<Vector3>(G(0)).norm() << endl;
+    cout << "state_0: " << endl << values_result.at<JPLNavState>(X(map_states[timestamp_cameras.at(0)])) << endl;
+    cout << "state_N: " << endl << values_result.at<JPLNavState>(X(map_states[timestamp_cameras.at(timestamp_cameras.size()-1)])) << endl;
+    cout << "R_BtoI: " << endl << values_result.at<Rot3>(C(0)).matrix() << endl << endl;
+    cout << "p_BinI: " << endl << values_result.at<Vector3>(C(1)) << endl << endl;
+    cout << "gravity: " << endl << values_result.at<Vector3>(G(0)) << endl << endl;
+    cout << "gravity norm: " << endl << values_result.at<Vector3>(G(0)).norm() << endl;
     cout << "======================================" << endl << endl;
 
 
@@ -310,10 +199,10 @@ void ViconGraphSolver::write_to_file(std::string csvfilepath, std::string infofi
     // Loop through all states, and
     for(size_t i=0; i<timestamp_cameras.size(); i++) {
         // get this state at this timestep
-        JPLNavState state = result_values.at<JPLNavState>(X(map_states[timestamp_cameras.at(i)]));
+        JPLNavState state = values_result.at<JPLNavState>(X(map_states[timestamp_cameras.at(i)]));
         // export to file
         // (time(ns),px,py,pz,qw,qx,qy,qz,vx,vy,vz,bwx,bwy,bwz,bax,bay,baz)
-        of_state << (uint32_t)(1e9*timestamp_cameras.at(i)) << ","
+        of_state << std::setprecision(20) << std::floor(1e9*timestamp_cameras.at(i)) << ","
                  << std::setprecision(6)
                  << state.p()(0,0) << ","<< state.p()(1,0) << ","<< state.p()(2,0) << ","
                  << state.q()(3,0) << "," << state.q()(0,0) << "," << state.q()(1,0) << "," << state.q()(2,0) << ","
@@ -327,17 +216,172 @@ void ViconGraphSolver::write_to_file(std::string csvfilepath, std::string infofi
     // Save calibration and the such to file
     std::ofstream of_info;
     of_info.open(infofilepath, std::ofstream::out | std::ofstream::app);
-    of_info << "R_BtoI: " << endl << result_values.at<Rot3>(C(0)).matrix() << endl << endl ;
-    of_info << "q_BtoI: " << endl << rot_2_quat(result_values.at<Rot3>(C(0)).matrix()) << endl << endl;
-    of_info << "p_BinI: " << endl << result_values.at<Vector3>(C(1)) << endl << endl;
-    of_info << "gravity: " << endl << result_values.at<Vector3>(G(0)) << endl << endl;
-    of_info << "gravity norm: " << endl << result_values.at<Vector3>(G(0)).norm() << endl;
+    of_info << "R_BtoI: " << endl << values_result.at<Rot3>(C(0)).matrix() << endl << endl ;
+    of_info << "q_BtoI: " << endl << rot_2_quat(values_result.at<Rot3>(C(0)).matrix()) << endl << endl;
+    of_info << "p_BinI: " << endl << values_result.at<Vector3>(C(1)) << endl << endl;
+    of_info << "gravity: " << endl << values_result.at<Vector3>(G(0)) << endl << endl;
+    of_info << "gravity norm: " << endl << values_result.at<Vector3>(G(0)).norm() << endl;
     of_info.close();
 
 }
 
 
 
+
+/**
+ * This will build the graph problem and add all measurements and nodes to it
+ * Given the first time, we init the states using the VICON, but in the future we keep them
+ * And only re-linearize measurements (i.e. for the preintegration biases)
+ */
+void ViconGraphSolver::build_problem(bool init_states) {
+
+    // Start timing
+    rT1 =  boost::posix_time::microsec_clock::local_time();
+
+    // Clear the old factors
+    graph->erase(graph->begin(), graph->end());
+
+    // Create gravity and calibration nodes and insert them
+    if(init_states) {
+        values.insert(C(0), Rot3(init_R_BtoI));
+        values.insert(C(1), Vector3(init_p_BinI));
+        values.insert(G(0), Vector3(init_grav_inV));
+    }
+
+    // If enforcing gravity magnitude, then add that prior factor here
+    if(enforce_grav_mag) {
+        Vector1 sigma;
+        sigma(0,0) = 1e-10;
+        MagnitudePrior factor_gav(G(0),sigma,init_grav_inV.norm());
+        graph->add(factor_gav);
+    }
+
+    // Loop through each camera time and construct the graph
+    ROS_INFO("building the graph (might take a while)");
+    auto it1 = timestamp_cameras.begin();
+    while(it1 != timestamp_cameras.end()) {
+
+        // If ros is wants us to stop, break out
+        if (!ros::ok())
+            break;
+
+        // Current image time
+        double timestamp = *it1;
+
+        // First get the vicon pose at the current time
+        Eigen::Matrix<double,4,1> q_VtoB;
+        Eigen::Matrix<double,3,1> p_BinV;
+        Eigen::Matrix<double,6,6> R_vicon;
+        bool has_vicon = interpolator->get_pose(timestamp,q_VtoB,p_BinV,R_vicon);
+
+        // Skip if we don't have a vicon measurement for this pose
+        if(!has_vicon) {
+            ROS_INFO("    - skipping camera time %.9f (no vicon pose found)",timestamp);
+            it1 = timestamp_cameras.erase(it1);
+            continue;
+        }
+
+        // Check if we can do the inverse
+        if(std::isnan(R_vicon.norm()) || std::isnan(R_vicon.inverse().norm())) {
+            ROS_INFO("    - skipping camera time %.9f (R.norm = %.3f | Rinv.norm = %.3f)",timestamp,R_vicon.norm(),R_vicon.inverse().norm());
+            it1 = timestamp_cameras.erase(it1);
+            continue;
+        }
+
+        // Now initialize the current pose of the IMU
+        if(init_states) {
+            Eigen::Matrix<double,4,1> q_VtoI = quat_multiply(rot_2_quat(init_R_BtoI),q_VtoB);
+            Eigen::Matrix<double,3,1> bg = Eigen::Matrix<double,3,1>::Zero();
+            Eigen::Matrix<double,3,1> v_IinV = Eigen::Matrix<double,3,1>::Zero();
+            Eigen::Matrix<double,3,1> ba = Eigen::Matrix<double,3,1>::Zero();
+            Eigen::Matrix<double,3,1> p_IinV = p_BinV - quat_2_Rot(Inv(q_VtoB))*init_R_BtoI.transpose()*init_p_BinI;
+            JPLNavState imu_state(q_VtoI, bg, v_IinV, ba, p_IinV);
+            values.insert(X(map_states[timestamp]), imu_state);
+        }
+
+        // Add the vicon measurement to this pose
+        ViconPoseFactor factor_vicon(X(map_states[timestamp]),C(0),C(1),R_vicon,q_VtoB,p_BinV);
+        graph->add(factor_vicon);
+
+        // Skip the first ever pose
+        if(it1 == timestamp_cameras.begin()) {
+            it1++;
+            continue;
+        }
+
+        // Now add preintegration between this state and the next
+        // We do a silly hack since inside of the propagator we create the preintegrator
+        // So we just randomly assign noises here which will be overwritten in the propagator
+        double time0 = *(it1-1);
+        double time1 = *(it1);
+
+        // Get the bias of the time0 state
+        Bias3 bg = values.at<JPLNavState>(X(map_states[time0])).bg();
+        Bias3 ba = values.at<JPLNavState>(X(map_states[time0])).ba();
+
+        // Get the preintegrator
+        CpiV1 preint(0,0,0,0,false);
+        bool has_imu = propagator->propagate(time0,time1,bg,ba,preint);
+        assert(has_imu);
+        assert(preint.DT==(time1-time0));
+
+        //cout << "dt = " << preint.DT << " | dt_times = " << time1-time0 << endl;
+        //cout << "q_k2tau = " << preint.q_k2tau.transpose() << endl;
+        //cout << "alpha_tau = " << preint.alpha_tau.transpose() << endl;
+        //cout << "beta_tau = " << preint.beta_tau.transpose() << endl;
+
+        // Check if we can do the inverse
+        if(std::isnan(preint.P_meas.norm()) || std::isnan(preint.P_meas.inverse().norm())) {
+            ROS_ERROR("R_imu is NAN | R.norm = %.3f | Rinv.norm = %.3f",preint.P_meas.norm(),preint.P_meas.inverse().norm());
+            ROS_ERROR("THIS SHOULD NEVER HAPPEN!@#!@#!@#!@#!#@");
+        }
+
+        // Now create the IMU factor
+        ImuFactorCPIv1 factor_imu(X(map_states[time0]),X(map_states[time1]),G(0),preint.P_meas,preint.DT,preint.alpha_tau,preint.beta_tau,
+                                  preint.q_k2tau,preint.b_a_lin,preint.b_w_lin,preint.J_q,preint.J_b,preint.J_a,preint.H_b,preint.H_a);
+        graph->add(factor_imu);
+
+        // Finally, move forward in time!
+        it1++;
+
+    }
+    rT2 =  boost::posix_time::microsec_clock::local_time();
+
+
+
+}
+
+
+
+
+/**
+ * This will optimize the graph.
+ * Uses Levenberg-Marquardt for the optimization.
+ */
+void ViconGraphSolver::optimize_problem() {
+
+    // Debug
+    ROS_INFO("[VICON-GRAPH]: graph factors - %d", (int) graph->nrFactors());
+    ROS_INFO("[VICON-GRAPH]: graph nodes - %d", (int) graph->keys().size());
+
+    // Setup the optimizer
+    LevenbergMarquardtParams config;
+    //config.verbosity = NonlinearOptimizerParams::Verbosity::TERMINATION;
+    //config.verbosityLM = LevenbergMarquardtParams::VerbosityLM::SUMMARY;
+    config.verbosityLM = LevenbergMarquardtParams::VerbosityLM::TERMINATION;
+    config.setAbsoluteErrorTol(1e-20);
+    config.setRelativeErrorTol(1e-30);
+    config.setlambdaUpperBound(1e20);
+    config.setMaxIterations(50);
+    LevenbergMarquardtOptimizer optimizer(*graph, values, config);
+
+    // Perform the optimization
+    ROS_INFO("[VICON-GRAPH]: begin optimization");
+    values_result = optimizer.optimize();
+    ROS_INFO("[VICON-GRAPH]: done optimization (%d iterations)!", (int) optimizer.iterations());
+    rT3 = boost::posix_time::microsec_clock::local_time();
+
+}
 
 
 

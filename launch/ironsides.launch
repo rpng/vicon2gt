@@ -21,11 +21,17 @@
         <param name="stats_path_states"  type="string" value="/home/patrick/datasets/ARL/ironsides_tracking/vicon2gt_states1.csv" />
         <param name="stats_path_info"    type="string" value="/home/patrick/datasets/ARL/ironsides_tracking/vicon2gt_info1.txt" />
 
+
+
         <!-- world parameters -->
-        <param name="enforce_grav_mag" type="bool" value="false" />
         <rosparam param="grav_inV">[0.0,0.0,9.81]</rosparam>
         <rosparam param="R_BtoI">[1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]</rosparam>
         <rosparam param="p_BinI">[0.0,0.0,0.0]</rosparam>
+        <param name="enforce_grav_mag" type="bool" value="false" />
+        <param name="num_loop_relin"   type="int"  value="0" />
+
+
+
 
         <!-- vicon sigmas, only used if we don't get odometry -->
         <!-- sigmas: (rx,ry,rz,px,py,pz) -->

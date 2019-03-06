@@ -85,6 +85,12 @@ public:
 
 private:
 
+    // Function that will build the problem
+    void build_problem(bool init_states);
+
+    // Function to optimize the graph
+    void optimize_problem();
+
     // Timing variables
     boost::posix_time::ptime rT1, rT2, rT3, rT4, rT5, rT6, rT7;
 
@@ -103,14 +109,8 @@ private:
     gtsam::NonlinearFactorGraph* graph;
     gtsam::Values values;
 
-    // Optmized values
-    gtsam::Values result_values;
-
-    // New factors that have not been optimized yet
-    // New nodes that have not been optimized
-    // This is used when we are using ISAM2
-    gtsam::NonlinearFactorGraph* graph_new;
-    gtsam::Values values_new;
+    // Optimized values
+    gtsam::Values values_result;
 
     // Map between state timestamp and their IDs
     std::map<double,size_t> map_states;
@@ -118,6 +118,8 @@ private:
     // If we should enforce gravity magnitude
     bool enforce_grav_mag;
 
+    // Number of times we will loop and relinearize the measurements
+    int num_loop_relin;
 
 };
 
