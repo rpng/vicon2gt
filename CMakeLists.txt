@@ -7,7 +7,7 @@ project(vicon2gt)
 SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/)
 
 # Find catkin (the ROS build system)
-find_package(catkin REQUIRED COMPONENTS roscpp tf std_msgs geometry_msgs sensor_msgs nav_msgs visualization_msgs)
+find_package(catkin REQUIRED COMPONENTS roscpp rosbag std_msgs geometry_msgs sensor_msgs nav_msgs visualization_msgs)
 
 # Include libraries
 find_package(Boost REQUIRED COMPONENTS system filesystem thread date_time)
@@ -16,7 +16,7 @@ find_package(MKL REQUIRED) # intel MKL library
 
 # Describe catkin project
 catkin_package(
-    CATKIN_DEPENDS roscpp tf std_msgs geometry_msgs sensor_msgs nav_msgs visualization_msgs
+    CATKIN_DEPENDS roscpp rosbag std_msgs geometry_msgs sensor_msgs nav_msgs visualization_msgs
     INCLUDE_DIRS src
 )
 
