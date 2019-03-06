@@ -86,8 +86,6 @@ void Interpolator::feed_odom(double timestamp, Eigen::Matrix<double,4,1> q, Eige
 bool Interpolator::get_pose(double timestamp, Eigen::Matrix<double,4,1>& q,
                             Eigen::Matrix<double,3,1>& p, Eigen::Matrix<double,6,6>& R) {
 
-    // First check if we have a match, and return it directly
-
     // Set the default values
     double time0 = -1;
     double time1 = -1;
@@ -151,18 +149,21 @@ bool Interpolator::get_pose(double timestamp, Eigen::Matrix<double,4,1>& q,
     Eigen::Matrix<double,3,3> R_interp = R_0toi*R_Gto0;
     Eigen::Matrix<double,3,1> p_interp = (1-lambda)*pose0.p + lambda*pose1.p;
 
-    // Calculate intermeadiate values for cov propagation equations
+    // Calculate intermediate values for cov propagation equations
+    // Equation (8)-(10) of Geneva2018ICRA async measurement paper
     Eigen::Matrix<double,3,3> eye33 = Eigen::Matrix<double,3,3>::Identity();
-    Eigen::Matrix<double,3,3> JR_r1i = Jr(lambda*vee(Log(R_0to1)));
-    Eigen::Matrix<double,3,3> JRneg_r1i = Jr(-lambda*vee(Log(R_0to1)));
-    Eigen::Matrix<double,3,3> JRinv_r12 = Jr(vee(Log(R_0to1))).inverse();
-    JRinv_r12 = JRinv_r12.inverse();
+    Eigen::Matrix<double,3,3> JR_r0i = Jr(lambda*vee(Log(R_0to1)));
+    Eigen::Matrix<double,3,3> JRinv_r01 = Jr(vee(Log(R_0to1))).inverse();
+    JRinv_r01 = JRinv_r01.inverse();
+    Eigen::Matrix<double,3,3> JRneg_r0i = Jr(-lambda*vee(Log(R_0to1.transpose())));
+    Eigen::Matrix<double,3,3> JRneginv_r01 = Jr(vee(Log(R_0to1.transpose()))).inverse();
+    JRneginv_r01 = JRneginv_r01.inverse();
 
     // Covariance propagation Jacobian
     // Equation (7) of Geneva2018ICRA async measurement paper
     Eigen::Matrix<double,6,12> Hu = Eigen::Matrix<double,6,12>::Zero();
-    Hu.block(0,0,3,3) = R_0toi*(JR_r1i*lambda*JRinv_r12-eye33);
-    Hu.block(0,6,3,3) = R_0toi*(JRneg_r1i*lambda*JRinv_r12);
+    Hu.block(0,0,3,3) = -R_0toi*(JR_r0i*lambda*JRinv_r01-eye33);
+    Hu.block(0,6,3,3) = R_0toi*(JRneg_r0i*lambda*JRinv_r01);
     Hu.block(3,6,3,3) = (1-lambda)*eye33;
     Hu.block(3,9,3,3) = lambda*eye33;
 

@@ -38,9 +38,6 @@ gtsam::Vector ViconPoseFactor::evaluateError(const JPLNavState& state, const Rot
                                              boost::optional<Matrix&> H1, boost::optional<Matrix&> H2, boost::optional<Matrix&> H3) const {
 
 
-
-
-
     //================================================================================
     //================================================================================
     //================================================================================
@@ -51,7 +48,7 @@ gtsam::Vector ViconPoseFactor::evaluateError(const JPLNavState& state, const Rot
     JPLQuaternion q_BtoI = rot_2_quat(R_BtoI.matrix());
 
     // Calculate the expected measurement values from the state
-    JPLQuaternion q_VtoB = quat_multiply(q_BtoI,q_VtoI);
+    JPLQuaternion q_VtoB = quat_multiply(Inv(q_BtoI),q_VtoI);
     Eigen::Matrix<double,3,1> p_BinV = p_IinV + quat_2_Rot(q_VtoI).transpose()*p_BinI;
 
     //================================================================================
