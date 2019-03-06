@@ -38,7 +38,7 @@ using namespace gtsam;
 namespace gtsam {
 
 
-    /// Bias for a sensor is currently typedef'd to Vector3
+    /// JPL quaternion for the orientation
     typedef Eigen::Matrix<double,4,1> JPLQuaternion;
 
     /// Bias for a sensor is currently typedef'd to Vector3
@@ -51,8 +51,9 @@ namespace gtsam {
     /**
      * \brief Continuous Preintegration Factor Model 1
      * Links two full JPL Navigation States with an IMU preintegrated measurement
+     * NOTE: we have added gravity here which the gravity in the estimate frame of reference
      */
-    class ImuFactorCPIv1 : public NoiseModelFactor2<JPLNavState, JPLNavState> {
+    class ImuFactorCPIv1 : public NoiseModelFactor3<JPLNavState, JPLNavState, Vector3> {
     private:
 
         Vector3 alpha; ///< preintegration measurement due to position
@@ -70,16 +71,15 @@ namespace gtsam {
         Eigen::Matrix<double,3,3> H_alpha; ///<  jacobian of the preintegrated position in respect to the accelerometer bias correction
 
         double deltatime; ///< time in seconds that this measurement is over
-        Vector3 grav; ///< global gravity (should be the same for all measurements)
 
     public:
 
         /// Construct from the two linking JPLNavStates, preingration measurement, and its covariance
-        ImuFactorCPIv1(Key state_i, Key state_j, Eigen::Matrix<double,15,15> covariance, double deltatime,
-                      Vector3 grav, Vector3 alpha, Vector3 beta, JPLQuaternion q_KtoK1, Bias3 ba_lin, Bias3 bg_lin,
-                      Eigen::Matrix<double,3,3> J_q, Eigen::Matrix<double,3,3> J_beta, Eigen::Matrix<double,3,3> J_alpha,
-                      Eigen::Matrix<double,3,3> H_beta, Eigen::Matrix<double,3,3> H_alpha) :
-                NoiseModelFactor2<JPLNavState, JPLNavState>(noiseModel::Gaussian::Covariance(covariance), state_i, state_j) {
+        ImuFactorCPIv1(Key state_i, Key state_j, Key grav, Eigen::Matrix<double,15,15> covariance, double deltatime,
+                       Vector3 alpha, Vector3 beta, JPLQuaternion q_KtoK1, Bias3 ba_lin, Bias3 bg_lin,
+                       Eigen::Matrix<double,3,3> J_q, Eigen::Matrix<double,3,3> J_beta, Eigen::Matrix<double,3,3> J_alpha,
+                       Eigen::Matrix<double,3,3> H_beta, Eigen::Matrix<double,3,3> H_alpha) :
+                NoiseModelFactor3<JPLNavState, JPLNavState, Vector3>(noiseModel::Gaussian::Covariance(covariance), state_i, state_j, grav) {
 
             // Measurement
             this->alpha = alpha;
@@ -95,7 +95,6 @@ namespace gtsam {
             this->H_alpha = H_alpha;
             // Static values
             this->deltatime = deltatime;
-            this->grav = grav;
 
         }
 
@@ -129,15 +128,11 @@ namespace gtsam {
             return bg_lin;
         }
 
-        /// Returns global gravity
-        Bias3 gravity() const {
-            return grav;
-        }
-
 
         /// Error function. Given the current states, calculate the measurement error/residual
-        gtsam::Vector evaluateError(const JPLNavState& state_i, const JPLNavState& state_j,
-                                    boost::optional<Matrix&> H1 = boost::none, boost::optional<Matrix&> H2 = boost::none) const;
+        gtsam::Vector evaluateError(const JPLNavState& state_i, const JPLNavState& state_j, const Vector3& gravity,
+                                    boost::optional<Matrix&> H1 = boost::none, boost::optional<Matrix&> H2 = boost::none,
+                                    boost::optional<Matrix&> H3 = boost::none) const;
 
 
         /// How this factor gets printed in the ostream
@@ -149,13 +144,12 @@ namespace gtsam {
             os << "dq_KtoK1:[" << factor.m_q()(0) << ", " << factor.m_q()(1) << ", " << factor.m_q()(2) << ", " << factor.m_q()(3) << "]'" << endl;
             os << "ba_lin:[" << factor.m_balin()(0) << ", " << factor.m_balin()(1) << ", " << factor.m_balin()(2) << "]'" << endl;
             os << "bg_lin:[" << factor.m_bglin()(0) << ", " << factor.m_bglin()(1) << ", " << factor.m_bglin()(2) << "]'" << endl;
-            os << "gravity:[" << factor.gravity()(0) << ", " << factor.gravity()(1) << ", " << factor.gravity()(2) << "]'" << endl;
             return os;
         }
 
         /// Print function for this factor
         void print(const std::string& s, const KeyFormatter& keyFormatter = DefaultKeyFormatter) const {
-            std::cout << s << "ImuFactorCPIv1(" << keyFormatter(this->key1()) << "," << keyFormatter(this->key2()) << ")" << std::endl;
+            std::cout << s << "ImuFactorCPIv1(" << keyFormatter(this->key1()) << "," << keyFormatter(this->key2()) << "," << keyFormatter(this->key3()) << ")" << std::endl;
             std::cout << "  measured: " << std::endl << *this << std::endl;
             this->noiseModel_->print("  noise model: ");
         }
@@ -166,7 +160,7 @@ namespace gtsam {
             const ImuFactorCPIv1 *e =  dynamic_cast<const ImuFactorCPIv1*>(&expected);
             if(e == NULL) return false;
             // Success, compare base noise values and the measurement values
-            return NoiseModelFactor2<JPLNavState,JPLNavState>::equals(*e, tol)
+            return NoiseModelFactor3<JPLNavState,JPLNavState,Vector3>::equals(*e, tol)
                    && gtsam::equal(deltatime, e->deltatime, tol)
                    && gtsam::equal(alpha, e->alpha, tol)
                    && gtsam::equal(beta, e->beta, tol)
@@ -177,8 +171,7 @@ namespace gtsam {
                    && gtsam::equal(J_beta, e->J_beta, tol)
                    && gtsam::equal(J_alpha, e->J_alpha, tol)
                    && gtsam::equal(H_beta, e->H_beta, tol)
-                   && gtsam::equal(H_alpha, e->H_alpha, tol)
-                   && gtsam::equal(grav, e->grav, tol);
+                   && gtsam::equal(H_alpha, e->H_alpha, tol);
         }
 
     };

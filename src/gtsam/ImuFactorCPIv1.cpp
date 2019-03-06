@@ -34,8 +34,8 @@ using namespace gtsam;
 /**
  * Called on when optimizing to get the error of this measurement
  */
-gtsam::Vector ImuFactorCPIv1::evaluateError(const JPLNavState &state_i, const JPLNavState &state_j,
-                                          boost::optional<Matrix&> H1, boost::optional<Matrix&> H2) const {
+gtsam::Vector ImuFactorCPIv1::evaluateError(const JPLNavState& state_i, const JPLNavState& state_j, const Vector3& gravity,
+                                            boost::optional<Matrix&> H1, boost::optional<Matrix&> H2, boost::optional<Matrix&> H3) const {
 
     // Separate our variables from our states
     JPLQuaternion q_GtoK = state_i.q();
@@ -48,6 +48,10 @@ gtsam::Vector ImuFactorCPIv1::evaluateError(const JPLNavState &state_i, const JP
     Bias3 ba_K1 = state_j.ba();
     Vector3 p_KinG = state_i.p();
     Vector3 p_K1inG = state_j.p();
+
+    // Estimated gravity in the global frame
+    // We do this so our global frame doesn't have to be gravity aligned
+    Vector3 grav_inG = gravity;
 
     //================================================================================
     //================================================================================
@@ -67,9 +71,9 @@ gtsam::Vector ImuFactorCPIv1::evaluateError(const JPLNavState &state_i, const JP
     //JPLQuaternion q_r = quat_multiply(quat_multiply(q_GtoK1,Inv(q_GtoK)),quat_multiply(Inv(q_KtoK1),q_b));
 
     // Calculate the expected measurement values from the state
-    Vector3 alphahat = quat_2_Rot(q_GtoK)*(p_K1inG - p_KinG - v_KinG*deltatime + 0.5*grav*std::pow(deltatime,2));
+    Vector3 alphahat = quat_2_Rot(q_GtoK)*(p_K1inG - p_KinG - v_KinG*deltatime + 0.5*grav_inG*std::pow(deltatime,2));
     alphahat = alphahat - J_alpha*(bg_K - bg_lin) - H_alpha*(ba_K - ba_lin);
-    Vector3 betahat = quat_2_Rot(q_GtoK)*(v_K1inG - v_KinG + grav*deltatime);
+    Vector3 betahat = quat_2_Rot(q_GtoK)*(v_K1inG - v_KinG + grav_inG*deltatime);
     betahat = betahat - J_beta*(bg_K - bg_lin) - H_beta*(ba_K - ba_lin);
 
     //================================================================================
@@ -110,9 +114,9 @@ gtsam::Vector ImuFactorCPIv1::evaluateError(const JPLNavState &state_i, const JP
                                     (q_m(3, 0) * Eigen::MatrixXd::Identity(3, 3) - skew_x(q_m.block(0, 0, 3, 1)))
                                       + q_n.block(0, 0, 3, 1) * (q_m.block(0, 0, 3, 1)).transpose());
         // Derivative of beta in respect to state theta (t=K)
-        H_theta.block(6,0,3,3) = skew_x(quat_2_Rot(q_GtoK)*(v_K1inG - v_KinG + grav*deltatime));
+        H_theta.block(6,0,3,3) = skew_x(quat_2_Rot(q_GtoK)*(v_K1inG - v_KinG + grav_inG*deltatime));
         // Derivative of alpha in respect to state theta (t=K)
-        H_theta.block(12,0,3,3) = skew_x(quat_2_Rot(q_GtoK)*(p_K1inG - p_KinG - v_KinG*deltatime + 0.5*grav*std::pow(deltatime,2)));
+        H_theta.block(12,0,3,3) = skew_x(quat_2_Rot(q_GtoK)*(p_K1inG - p_KinG - v_KinG*deltatime + 0.5*grav_inG*std::pow(deltatime,2)));
 
         //===========================================================
         // Derivative of q_meas in respect to state biasg (t=K)
@@ -197,11 +201,25 @@ gtsam::Vector ImuFactorCPIv1::evaluateError(const JPLNavState &state_i, const JP
 
     }
 
+    // Jacobian in respect to the global gravity
+    if(H3) {
+        // Our jacobian
+        Eigen::Matrix<double,15,3> Hg = Eigen::Matrix<double,15,3>::Zero();
+        // Derivative of beta in respect to gravity
+        Hg.block(6,0,3,3) = quat_2_Rot(q_GtoK)*deltatime;
+        // Derivative of alpha in respet to gravity
+        Hg.block(12,0,3,3) = 0.5*quat_2_Rot(q_GtoK)*std::pow(deltatime,2);
+        // Reconstruct the whole Jacobian
+        *H3 = *OptionalJacobian<15,3>(Hg);
+    }
+
+
     // Debug printing of error and Jacobians
     //if(H1) cout << endl << "ImuFactorCPIv1 H1" << endl << *H1 << endl << endl;
     //if(H2) cout << endl << "ImuFactorCPIv1 H2" << endl << *H2 << endl << endl;
+    //if(H3) cout << endl << "ImuFactorCPIv1 H3" << endl << *H3 << endl << endl;
     //KeyFormatter keyFormatter = DefaultKeyFormatter;
-    //cout << endl << "ImuFactorCPIv1 (" << keyFormatter(this->key1()) << "," << keyFormatter(this->key2()) << ")" << endl << error.transpose() << endl;
+    //cout << endl << "ImuFactorCPIv1 (" << keyFormatter(this->key1()) << "," << keyFormatter(this->key2()) << "," << keyFormatter(this->key3()) << ")" << endl << error.transpose() << endl;
 
     // Finally return our error vector!
     return error;
