@@ -32,6 +32,7 @@
 #include <Eigen/Eigen>
 #include <ros/ros.h>
 
+#include "cpi/CpiBase.h"
 #include "cpi/CpiV1.h"
 #include "utils/quat_ops.h"
 
@@ -60,8 +61,10 @@ public:
     void feed_imu(double timestamp, Eigen::Matrix<double,3,1> wm, Eigen::Matrix<double,3,1> am);
 
     // Our propagation function, will propagate to the next timestep
-    CpiV1* propagate(double time0, double time1, Eigen::Matrix<double,3,1> bg_lin, Eigen::Matrix<double,3,1> ba_lin);
+    bool propagate(double time0, double time1, Eigen::Matrix<double,3,1> bg_lin, Eigen::Matrix<double,3,1> ba_lin, CpiV1& integration);
 
+    // Check if we have bounding IMU poses
+    bool has_bounding_imu(double timestamp);
 
 private:
 

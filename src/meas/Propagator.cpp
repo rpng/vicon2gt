@@ -50,7 +50,7 @@ void Propagator::feed_imu(double timestamp, Eigen::Matrix<double,3,1> wm, Eigen:
  * Given two timestamps and the bias linerization points (can be taken to be zero at the start)
  * This will propagate between the specified timestamps with the IMU messages we have currently stored
  */
-CpiV1* Propagator::propagate(double time0, double time1, Eigen::Matrix<double,3,1> bg_lin, Eigen::Matrix<double,3,1> ba_lin) {
+bool Propagator::propagate(double time0, double time1, Eigen::Matrix<double,3,1> bg_lin, Eigen::Matrix<double,3,1> ba_lin, CpiV1& integration) {
 
 
     // First lets construct an IMU vector of measurements we need
@@ -117,6 +117,7 @@ CpiV1* Propagator::propagate(double time0, double time1, Eigen::Matrix<double,3,
         ROS_ERROR("[TIME-SYNC]: Make sure you feed IMU readings into the propagator...");
         ROS_ERROR("%s on line %d",__FILE__,__LINE__);
         std::exit(EXIT_FAILURE);
+        //return false;
     }
 
     // If we did not reach the whole integration period (i.e., the last inertial measurement we have is smaller then the time we want to reach)
@@ -146,6 +147,7 @@ CpiV1* Propagator::propagate(double time0, double time1, Eigen::Matrix<double,3,
         ROS_ERROR("[TIME-SYNC]: Make sure you feed IMU readings into the propagator...");
         ROS_ERROR("%s on line %d",__FILE__,__LINE__);
         std::exit(EXIT_FAILURE);
+        //return false;
     }
 
     // Debug
@@ -159,30 +161,59 @@ CpiV1* Propagator::propagate(double time0, double time1, Eigen::Matrix<double,3,
     //===================================================================================
 
     // Create our IMU measurement between the current state time, and the update time
-    CpiV1* int_cpi1 = new CpiV1(sigma_w, sigma_wb, sigma_a, sigma_ab, false);
+    integration = CpiV1(sigma_w, sigma_wb, sigma_a, sigma_ab, false);
 
     // CPI linearization points
-    int_cpi1->setLinearizationPoints(bg_lin,ba_lin);
+    integration.setLinearizationPoints(bg_lin,ba_lin);
 
     // Loop through all IMU messages, and use them to compute our preintegration measurement
     // Note: we do this for all three versions, but we will only use one in our graph
     for(size_t i=0; i<prop_data.size()-1; i++) {
-        int_cpi1->feed_IMU(prop_data.at(i).timestamp,prop_data.at(i+1).timestamp,
-                           prop_data.at(i).wm,prop_data.at(i).am,
-                           prop_data.at(i+1).wm,prop_data.at(i+1).am);
+        integration.feed_IMU(prop_data.at(i).timestamp,prop_data.at(i+1).timestamp,
+                             prop_data.at(i).wm,prop_data.at(i).am,
+                             prop_data.at(i+1).wm,prop_data.at(i+1).am);
     }
 
-
     // Debug messages
-    //cout << "q_k2tau = " << int_cpi1->q_k2tau.transpose() << endl;
-    //cout << "alpha_tau = " << int_cpi1->alpha_tau.transpose() << endl;
-    //cout << "beta_tau = " << int_cpi1->beta_tau.transpose() << endl;
-
+    //cout << "q_k2tau = " << integration->q_k2tau.transpose() << endl;
+    //cout << "alpha_tau = " << integration->alpha_tau.transpose() << endl;
+    //cout << "beta_tau = " << integration->beta_tau.transpose() << endl;
 
     // Finally return this preintegration
-    return int_cpi1;
+    return true;
 
 }
 
 
 
+
+/**
+ * This function will check if we have IMU measurements before and after the given timestamp
+ */
+bool Propagator::has_bounding_imu(double timestamp) {
+
+    // Ensure we have some measurements in the first place!
+    if (imu_data.empty()) {
+        return false;
+    }
+
+    // If we have a lower and upper bounding imu
+    bool has_lower = false;
+    bool has_upper = false;
+
+    // Loop through and find bounding IMU
+    for (size_t i = 0; i < imu_data.size(); i++) {
+        // Check if we have a lower bound
+        if (imu_data.at(i).timestamp <= timestamp) {
+            has_lower = true;
+        }
+        // Check if we have an upper bound
+        if (imu_data.at(i).timestamp >= timestamp) {
+            has_upper = true;
+        }
+    }
+
+    // Return if we found
+    return (has_lower && has_upper);
+
+}

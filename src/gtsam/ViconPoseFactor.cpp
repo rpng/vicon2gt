@@ -83,9 +83,13 @@ gtsam::Vector ViconPoseFactor::evaluateError(const JPLNavState& state, const Rot
     }
 
     // Compute the Jacobian in respect orientation extrinics between BODY and IMU frames
+    // NOTE:!@#!@#!@##@!@#!#!@#!@#!@#!@#!#!@#!@#!@#!@#!@#!@#!@#!$%$!@%$@!#$!@#!@#
+    // NOTE: gtsam uses the right expodential expansion of the rotation error
+    // NOTE: (I-skew(theta1)*R_VtoB = (R_BtoI*(I+skew(theta2)))^T*R_VtoI
     if(H2) {
         Eigen::Matrix<double,6,3> H = Eigen::Matrix<double,6,3>::Zero();
-        H.block(0,0,3,3) = -quat_2_Rot(Inv(q_BtoI));
+        //H.block(0,0,3,3) = -quat_2_Rot(Inv(q_BtoI)); // our form
+        H.block(0,0,3,3).setIdentity(); // since we use gtsam rot3
         *H2 = *OptionalJacobian<6,3>(H);
     }
 

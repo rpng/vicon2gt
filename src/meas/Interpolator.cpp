@@ -87,8 +87,6 @@ bool Interpolator::get_pose(double timestamp, Eigen::Matrix<double,4,1>& q,
                             Eigen::Matrix<double,3,1>& p, Eigen::Matrix<double,6,6>& R) {
 
     // Set the default values
-    double time0 = -1;
-    double time1 = -1;
     POSEDATA pose0, pose1, poseEXACT;
 
     // Find the bounding poses
@@ -131,8 +129,8 @@ bool Interpolator::get_pose(double timestamp, Eigen::Matrix<double,4,1>& q,
 
     // Return false if we do not have any bounding pose for this measurement (shouldn't happen)
     if(!found_older || !found_newer || min_time == max_time) {
-        ROS_ERROR("[INTERPOLATOR]: UNABLE TO FIND BOUNDING POSES");
-        ROS_ERROR("[INTERPOLATOR]: tmeas = %.9f | time0 = %.9f | time1 = %.9f", timestamp, time0, time1);
+        //ROS_ERROR("[INTERPOLATOR]: UNABLE TO FIND BOUNDING POSES");
+        //ROS_ERROR("[INTERPOLATOR]: tmeas = %.9f | time0 = %.9f | time1 = %.9f", timestamp, time0, time1);
         return false;
     }
 
@@ -154,10 +152,10 @@ bool Interpolator::get_pose(double timestamp, Eigen::Matrix<double,4,1>& q,
     Eigen::Matrix<double,3,3> eye33 = Eigen::Matrix<double,3,3>::Identity();
     Eigen::Matrix<double,3,3> JR_r0i = Jr(lambda*vee(Log(R_0to1)));
     Eigen::Matrix<double,3,3> JRinv_r01 = Jr(vee(Log(R_0to1))).inverse();
-    JRinv_r01 = JRinv_r01.inverse();
+    JRinv_r01 = JRinv_r01.inverse().eval();
     Eigen::Matrix<double,3,3> JRneg_r0i = Jr(-lambda*vee(Log(R_0to1.transpose())));
     Eigen::Matrix<double,3,3> JRneginv_r01 = Jr(vee(Log(R_0to1.transpose()))).inverse();
-    JRneginv_r01 = JRneginv_r01.inverse();
+    JRneginv_r01 = JRneginv_r01.inverse().eval();
 
     // Covariance propagation Jacobian
     // Equation (7) of Geneva2018ICRA async measurement paper

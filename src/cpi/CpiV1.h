@@ -53,6 +53,10 @@ public:
     CpiV1(double sigma_w, double sigma_wb, double sigma_a, double sigma_ab, bool imu_avg_= false):
             CpiBase(sigma_w, sigma_wb, sigma_a, sigma_ab, imu_avg_){}
 
+    /**
+     * Deconstructor
+     */
+    //~CpiV1(){}
 
     /**
      * Our precompound function for Model 1

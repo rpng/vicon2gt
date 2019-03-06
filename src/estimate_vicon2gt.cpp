@@ -46,6 +46,7 @@
 
 #include "meas/Propagator.h"
 #include "meas/Interpolator.h"
+#include "solver/ViconGraphSolver.h"
 
 
 int main(int argc, char** argv)
@@ -64,7 +65,8 @@ int main(int argc, char** argv)
 
     // Load the bag path
     std::string path_to_bag;
-    nh.param<std::string>("path_bag", path_to_bag, "/home/patrick/datasets/ARL/ironsides_tracking/2019-02-22-12-03-15.bag");
+    //nh.param<std::string>("path_bag", path_to_bag, "/home/patrick/datasets/ARL/ironsides_tracking/2019-02-22-12-03-15.bag");
+    nh.param<std::string>("path_bag", path_to_bag, "/home/patrick/datasets/ARL/cyclops/2019-02-22-14-33-37.bag");
     ROS_INFO("ros bag path is: %s", path_to_bag.c_str());
 
     // Get our start location and how much of the bag we want to play
@@ -97,7 +99,7 @@ int main(int argc, char** argv)
     ROS_INFO("loading rosbag...");
     ROS_INFO("    - time start = %.6f", time_init.toSec());
     ROS_INFO("    - time end   = %.6f", time_finish.toSec());
-    ROS_INFO("    - duration   = %.3f (secs)", time_finish.toSec()-time_init.toSec());
+    ROS_INFO("    - duration   = %.2f (secs)", time_finish.toSec()-time_init.toSec());
     view.addQuery(bag, time_init, time_finish);
 
     // Check to make sure we have data to play
@@ -192,14 +194,13 @@ int main(int argc, char** argv)
 
 
 
-    // TODO: create the graph problem
-
-
-
-    // TODO: solve that graph problem
+    // Create the graph problem, and solve it
+    ViconGraphSolver solver(nh,propagator,interpolator,timestamp_cameras);
+    solver.build_and_solve();
 
 
     // TODO: finally, save to file all the information
+
 
 
     // Done!

@@ -77,6 +77,7 @@ add_executable(estimate_vicon2gt
         src/gtsam/ViconPoseFactor.cpp
         src/meas/Interpolator.cpp
         src/meas/Propagator.cpp
+        src/solver/ViconGraphSolver.cpp
         ${external_sources}
 )
 target_link_libraries(estimate_vicon2gt ${thirdparty_libraries})

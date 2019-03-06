@@ -65,6 +65,10 @@ public:
         e_3x = skew_x(e_3);
     }
 
+    /**
+     * Deconstructor (base classes need to have this implemented)
+     */
+    //virtual ~CpiBase();
 
     /**
      * This function sets the linearization points we are to preintegrate about
