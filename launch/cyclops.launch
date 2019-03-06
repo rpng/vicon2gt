@@ -8,19 +8,19 @@
         <!-- bag topics -->
         <param name="topic_imu"      type="string" value="/mti/sensor/imu_raw" />
         <param name="topic_cam"      type="string" value="/camera/image_mono" />
-        <!--<param name="topic_vicon"    type="string" value="/vicon/cyclops/odom" />-->
-        <param name="topic_vicon"    type="string" value="/vicon/cyclops/pose" />
+        <param name="topic_vicon"    type="string" value="/vicon/cyclops/odom" />
+        <!--<param name="topic_vicon"    type="string" value="/vicon/cyclops/pose" />-->
 
         <!-- bag parameters -->
         <!--<param name="path_bag"    type="string" value="/home/patrick/datasets/ARL/cyclops/2019-02-22-14-33-37.bag" />-->
         <param name="path_bag"    type="string" value="/home/patrick/datasets/ARL/cyclops/2019-02-22-15-06-32.bag" />
-        <param name="bag_start"   type="double" value="180" />
-        <param name="bag_durr"    type="double" value="400" />
+        <param name="bag_start"   type="double" value="0" />
+        <param name="bag_durr"    type="double" value="-1" />
 
         <!-- save information -->
         <param name="save2file"          type="bool"   value="true" />
-        <param name="stats_path_states"  type="string" value="/home/patrick/datasets/ARL/cyclops/vicon2gt_states5.csv" />
-        <param name="stats_path_info"    type="string" value="/home/patrick/datasets/ARL/cyclops/vicon2gt_info5.txt" />
+        <param name="stats_path_states"  type="string" value="/home/patrick/datasets/ARL/cyclops/vicon2gt_states.csv" />
+        <param name="stats_path_info"    type="string" value="/home/patrick/datasets/ARL/cyclops/vicon2gt_info.txt" />
 
         <!-- world parameters -->
         <param name="enforce_grav_mag" type="bool" value="false" />

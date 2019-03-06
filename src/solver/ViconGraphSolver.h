@@ -44,6 +44,7 @@
 #include "gtsam/ViconPoseFactor.h"
 #include "gtsam/JPLNavState.h"
 #include "gtsam/ImuFactorCPIv1.h"
+#include "gtsam/MagnitudePrior.h"
 #include "meas/Propagator.h"
 #include "meas/Interpolator.h"
 #include "utils/quat_ops.h"
@@ -114,6 +115,8 @@ private:
     // Map between state timestamp and their IDs
     std::map<double,size_t> map_states;
 
+    // If we should enforce gravity magnitude
+    bool enforce_grav_mag;
 
 
 };

@@ -69,6 +69,10 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, Propagator* propagator,
     cout << "init_p_BinI:" << endl << init_p_BinI << endl;
 
 
+    // See if we should enforce gravity
+    nh.param<bool>("enforce_grav_mag", enforce_grav_mag, false);
+    cout << "enforce_grav_mag: " << (int)enforce_grav_mag << endl;
+
 
 }
 
@@ -132,6 +136,15 @@ void ViconGraphSolver::build_and_solve() {
     values.insert(G(0), Vector3(init_grav_inV));
     values_new.insert(G(0), Vector3(init_grav_inV));
 
+
+    // If enforcing gravity magnitude, then add that prior factor here
+    if(enforce_grav_mag) {
+        Vector1 sigma;
+        sigma(0,0) = 1e-10;
+        MagnitudePrior factor_gav(G(0),sigma,init_grav_inV.norm());
+        graph->add(factor_gav);
+        graph_new->add(factor_gav);
+    }
 
     // Loop through each camera time and construct the graph
     ROS_INFO("building the graph (might take a while)");

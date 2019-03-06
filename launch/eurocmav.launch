@@ -11,7 +11,8 @@
         <param name="topic_vicon"    type="string" value="/vicon/firefly_sbx/firefly_sbx" />
 
         <!-- bag parameters -->
-        <param name="path_bag"    type="string" value="/home/patrick/datasets/eth/V1_02_medium.bag" />
+        <!--<param name="path_bag"    type="string" value="/home/patrick/datasets/eth/V1_02_medium.bag" />-->
+        <param name="path_bag"    type="string" value="/home/patrick/datasets/eth/V1_01_easy.bag" />
         <param name="bag_start"   type="int"    value="0" />
         <param name="bag_durr"    type="int"    value="-1" />
 
@@ -21,7 +22,7 @@
         <param name="stats_path_info"    type="string" value="/home/patrick/datasets/eth/vicon2gt_info.txt" />
 
         <!-- world parameters -->
-        <param name="enforce_grav_mag" type="bool" value="false" />
+        <param name="enforce_grav_mag" type="bool" value="true" />
         <rosparam param="grav_inV">[0.0,0.0,9.81]</rosparam>
         <rosparam param="R_BtoI">[1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]</rosparam>
         <rosparam param="p_BinI">[0.0,0.0,0.0]</rosparam>
