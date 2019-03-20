@@ -10,7 +10,7 @@ SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/)
 find_package(catkin REQUIRED COMPONENTS roscpp rosbag std_msgs geometry_msgs sensor_msgs nav_msgs visualization_msgs)
 
 # Include libraries
-find_package(Boost REQUIRED COMPONENTS system filesystem thread date_time)
+find_package(Boost REQUIRED COMPONENTS system filesystem thread date_time serialization regex timer)
 find_package(GTSAM REQUIRED) # source: https://bitbucket.org/gtborg/gtsam/
 find_package(MKL REQUIRED) # intel MKL library
 
