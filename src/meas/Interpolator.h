@@ -75,6 +75,12 @@ public:
     bool get_pose(double timestamp, Eigen::Matrix<double,4,1>& q, Eigen::Matrix<double,3,1>& p, Eigen::Matrix<double,6,6>& R);
 
 
+    // Given a timestamp, this will find the bounding poses for them
+    bool get_bounds(double timestamp,
+            double &time0, Eigen::Matrix<double,4,1>& q0, Eigen::Matrix<double,3,1>& p0, Eigen::Matrix<double,6,6>& R0,
+            double &time1, Eigen::Matrix<double,4,1>& q1, Eigen::Matrix<double,3,1>& p1, Eigen::Matrix<double,6,6>& R1);
+
+
 private:
 
 

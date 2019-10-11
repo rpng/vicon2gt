@@ -42,6 +42,7 @@
 
 #include "cpi/CpiV1.h"
 #include "gtsam/ViconPoseFactor.h"
+#include "gtsam/ViconPoseTimeoffsetFactor.h"
 #include "gtsam/JPLNavState.h"
 #include "gtsam/ImuFactorCPIv1.h"
 #include "gtsam/MagnitudePrior.h"
@@ -61,6 +62,7 @@ using namespace gtsam;
 using gtsam::symbol_shorthand::X; // X: our JPL states
 using gtsam::symbol_shorthand::C; // C: calibration (c(0)=rot, c(1)=pos)
 using gtsam::symbol_shorthand::G; // G: global gravity in the vicon frame
+using gtsam::symbol_shorthand::T; // T: time offset between vicon and imu sensors
 
 
 
@@ -103,6 +105,7 @@ private:
     Eigen::Matrix<double,3,1> init_grav_inV;
     Eigen::Matrix<double,3,3> init_R_BtoI;
     Eigen::Matrix<double,3,1> init_p_BinI;
+    double init_toff_imu_to_vicon;
 
     // Master non-linear GTSAM graph, all created factors
     // Also have all nodes in the graph
@@ -117,6 +120,9 @@ private:
 
     // If we should enforce gravity magnitude
     bool enforce_grav_mag;
+
+    // If we should estimate time offset between the imu and vicon
+    bool estimate_toff_vicon_to_imu;
 
     // Number of times we will loop and relinearize the measurements
     int num_loop_relin;

@@ -62,15 +62,23 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, Propagator* propagator,
     nh.param<std::vector<double>>("p_BinI", p_BinI, p_BinI_default);
     init_p_BinI << p_BinI.at(0),p_BinI.at(1),p_BinI.at(2);
 
+    // Time offset between imu and vicon
+    nh.param<double>("toff_imu_to_vicon", init_toff_imu_to_vicon, 0.0);
+
     // Debug print to console
     cout << "init_grav_inV:" << endl << init_grav_inV << endl;
     cout << "init_R_BtoI:" << endl << init_R_BtoI << endl;
     cout << "init_p_BinI:" << endl << init_p_BinI << endl;
+    cout << "init_toff_imu_to_vicon:" << endl << init_toff_imu_to_vicon << endl;
 
 
     // See if we should enforce gravity
     nh.param<bool>("enforce_grav_mag", enforce_grav_mag, false);
     cout << "enforce_grav_mag: " << (int)enforce_grav_mag << endl;
+
+    // See if we should estimate time offset
+    nh.param<bool>("estimate_toff_vicon_to_imu", estimate_toff_vicon_to_imu, false);
+    cout << "estimate_toff_vicon_to_imu: " << (int)estimate_toff_vicon_to_imu << endl;
 
     // Number of times we relinearize
     nh.param<int>("num_loop_relin", num_loop_relin, 0);
@@ -157,6 +165,8 @@ void ViconGraphSolver::build_and_solve() {
     cout << "p_BinI: " << endl << values_result.at<Vector3>(C(1)) << endl << endl;
     cout << "gravity: " << endl << values_result.at<Vector3>(G(0)) << endl << endl;
     cout << "gravity norm: " << endl << values_result.at<Vector3>(G(0)).norm() << endl;
+    if(estimate_toff_vicon_to_imu) cout << "t_off_vicon_to_imu: " << endl << values_result.at<Vector1>(T(0)) << endl;
+    else cout << "t_off_vicon_to_imu: " << endl << 0.0000 << endl;
     cout << "======================================" << endl << endl;
 
 
@@ -221,6 +231,8 @@ void ViconGraphSolver::write_to_file(std::string csvfilepath, std::string infofi
     of_info << "p_BinI: " << endl << values_result.at<Vector3>(C(1)) << endl << endl;
     of_info << "gravity: " << endl << values_result.at<Vector3>(G(0)) << endl << endl;
     of_info << "gravity norm: " << endl << values_result.at<Vector3>(G(0)).norm() << endl;
+    if(estimate_toff_vicon_to_imu) of_info << "t_off_vicon_to_imu: " << endl << values_result.at<Vector1>(T(0)) << endl;
+    else of_info << "t_off_vicon_to_imu: " << endl << 0.0000 << endl;
     of_info.close();
 
 }
@@ -247,6 +259,11 @@ void ViconGraphSolver::build_problem(bool init_states) {
         values.insert(C(1), Vector3(init_p_BinI));
         values.insert(G(0), Vector3(init_grav_inV));
     }
+    if(init_states && estimate_toff_vicon_to_imu) {
+        Vector1 temp;
+        temp(0) = init_toff_imu_to_vicon;
+        values.insert(T(0), temp);
+    }
 
     // If enforcing gravity magnitude, then add that prior factor here
     if(enforce_grav_mag) {
@@ -267,22 +284,27 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
         // Current image time
         double timestamp = *it1;
+        double timestamp_corrected = (estimate_toff_vicon_to_imu)? *it1+values.at<Vector1>(T(0))(0) : *it1+init_toff_imu_to_vicon;
 
         // First get the vicon pose at the current time
-        Eigen::Matrix<double,4,1> q_VtoB;
-        Eigen::Matrix<double,3,1> p_BinV;
-        Eigen::Matrix<double,6,6> R_vicon;
-        bool has_vicon = interpolator->get_pose(timestamp,q_VtoB,p_BinV,R_vicon);
+        double timeB0, timeB1;
+        Eigen::Matrix<double,4,1> q_VtoB, q_VtoB0, q_VtoB1;
+        Eigen::Matrix<double,3,1> p_BinV, p_B0inV, p_B1inV;
+        Eigen::Matrix<double,6,6> R_vicon, R_vicon0, R_vicon1;
+        bool has_vicon1 = interpolator->get_pose(timestamp_corrected,q_VtoB,p_BinV,R_vicon);
+        bool has_vicon2 = interpolator->get_bounds(timestamp_corrected,timeB0,q_VtoB0,p_B0inV,R_vicon0,timeB1,q_VtoB1,p_B1inV,R_vicon1);
 
         // Skip if we don't have a vicon measurement for this pose
-        if(!has_vicon) {
+        if(!has_vicon1 || !has_vicon2) {
             ROS_INFO("    - skipping camera time %.9f (no vicon pose found)",timestamp);
             it1 = timestamp_cameras.erase(it1);
             continue;
         }
 
         // Check if we can do the inverse
-        if(std::isnan(R_vicon.norm()) || std::isnan(R_vicon.inverse().norm())) {
+        if(std::isnan(R_vicon.norm()) || std::isnan(R_vicon.inverse().norm())
+            || std::isnan(R_vicon0.norm()) || std::isnan(R_vicon0.inverse().norm())
+            || std::isnan(R_vicon1.norm()) || std::isnan(R_vicon1.inverse().norm())) {
             ROS_INFO("    - skipping camera time %.9f (R.norm = %.3f | Rinv.norm = %.3f)",timestamp,R_vicon.norm(),R_vicon.inverse().norm());
             it1 = timestamp_cameras.erase(it1);
             continue;
@@ -300,8 +322,13 @@ void ViconGraphSolver::build_problem(bool init_states) {
         }
 
         // Add the vicon measurement to this pose
-        ViconPoseFactor factor_vicon(X(map_states[timestamp]),C(0),C(1),R_vicon,q_VtoB,p_BinV);
-        graph->add(factor_vicon);
+        if(!estimate_toff_vicon_to_imu) {
+            ViconPoseFactor factor_vicon(X(map_states[timestamp]),C(0),C(1),R_vicon,q_VtoB,p_BinV);
+            graph->add(factor_vicon);
+        } else {
+            ViconPoseTimeoffsetFactor factor_vicon(X(map_states[timestamp]),C(0),C(1),T(0),R_vicon0,timestamp,timeB0,q_VtoB0,p_B0inV,timeB1,q_VtoB1,p_B1inV);
+            graph->add(factor_vicon);
+        }
 
         // Skip the first ever pose
         if(it1 == timestamp_cameras.begin()) {

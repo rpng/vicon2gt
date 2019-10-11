@@ -75,6 +75,7 @@ add_executable(estimate_vicon2gt
 	    src/gtsam/JPLNavState.cpp
         src/gtsam/ImuFactorCPIv1.cpp
         src/gtsam/ViconPoseFactor.cpp
+        src/gtsam/ViconPoseTimeoffsetFactor.cpp
         src/gtsam/MagnitudePrior.cpp
         src/meas/Interpolator.cpp
         src/meas/Propagator.cpp
