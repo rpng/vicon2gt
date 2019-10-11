@@ -251,6 +251,7 @@ void ViconGraphSolver::build_problem(bool init_states) {
     rT1 =  boost::posix_time::microsec_clock::local_time();
 
     // Clear the old factors
+    ROS_INFO("[BUILD]: building the graph (might take a while)");
     graph->erase(graph->begin(), graph->end());
 
     // Create gravity and calibration nodes and insert them
@@ -259,10 +260,21 @@ void ViconGraphSolver::build_problem(bool init_states) {
         values.insert(C(1), Vector3(init_p_BinI));
         values.insert(G(0), Vector3(init_grav_inV));
     }
-    if(init_states && estimate_toff_vicon_to_imu) {
-        Vector1 temp;
-        temp(0) = init_toff_imu_to_vicon;
-        values.insert(T(0), temp);
+
+    // If estimating the timeoffset logic
+    if(estimate_toff_vicon_to_imu) {
+        // Add value if first time
+        if(init_states) {
+            Vector1 temp;
+            temp(0) = init_toff_imu_to_vicon;
+            values.insert(T(0), temp);
+        }
+        // Prior to make time offset stable
+        //Vector1 sigma;
+        //sigma(0,0) = 2.0; // seconds
+        //PriorFactor<Vector1> factor_timemag(T(0), values.at<Vector1>(T(0)), sigma);
+        //graph->add(factor_timemag);
+        ROS_INFO("[BUILD]: current time offset is %.4f", values.at<Vector1>(T(0))(0));
     }
 
     // If enforcing gravity magnitude, then add that prior factor here
@@ -271,10 +283,11 @@ void ViconGraphSolver::build_problem(bool init_states) {
         sigma(0,0) = 1e-10;
         MagnitudePrior factor_gav(G(0),sigma,init_grav_inV.norm());
         graph->add(factor_gav);
+    } else {
+        ROS_INFO("[BUILD]: current gravity mag is %.4f", values.at<Vector1>(G(0)).norm());
     }
 
     // Loop through each camera time and construct the graph
-    ROS_INFO("building the graph (might take a while)");
     auto it1 = timestamp_cameras.begin();
     while(it1 != timestamp_cameras.end()) {
 
@@ -284,7 +297,7 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
         // Current image time
         double timestamp = *it1;
-        double timestamp_corrected = (estimate_toff_vicon_to_imu)? *it1+values.at<Vector1>(T(0))(0) : *it1+init_toff_imu_to_vicon;
+        double timestamp_corrected = (estimate_toff_vicon_to_imu)? timestamp+values.at<Vector1>(T(0))(0) : timestamp+init_toff_imu_to_vicon;
 
         // First get the vicon pose at the current time
         double timeB0, timeB1;
@@ -391,16 +404,24 @@ void ViconGraphSolver::optimize_problem() {
     ROS_INFO("[VICON-GRAPH]: graph factors - %d", (int) graph->nrFactors());
     ROS_INFO("[VICON-GRAPH]: graph nodes - %d", (int) graph->keys().size());
 
-    // Setup the optimizer
+    // Setup the optimizer (levenberg)
     LevenbergMarquardtParams config;
-    //config.verbosity = NonlinearOptimizerParams::Verbosity::TERMINATION;
+    config.verbosity = NonlinearOptimizerParams::Verbosity::TERMINATION;
     //config.verbosityLM = LevenbergMarquardtParams::VerbosityLM::SUMMARY;
-    config.verbosityLM = LevenbergMarquardtParams::VerbosityLM::TERMINATION;
-    config.setAbsoluteErrorTol(1e-20);
-    config.setRelativeErrorTol(1e-30);
-    config.setlambdaUpperBound(1e20);
-    config.setMaxIterations(50);
+    //config.verbosityLM = LevenbergMarquardtParams::VerbosityLM::TERMINATION;
+    config.absoluteErrorTol = 1e-30;
+    config.relativeErrorTol = 1e-30;
+    config.lambdaUpperBound = 1e20;
+    config.maxIterations = 30;
     LevenbergMarquardtOptimizer optimizer(*graph, values, config);
+
+    // Setup optimizer (dogleg)
+    //DoglegParams params;
+    //params.verbosity = NonlinearOptimizerParams::Verbosity::TERMINATION;
+    //params.relativeErrorTol = 1e-10;
+    //params.absoluteErrorTol = 1e-10;
+    //DoglegOptimizer optimizer(*graph, values, params);
+
 
     // Perform the optimization
     ROS_INFO("[VICON-GRAPH]: begin optimization");

@@ -29,6 +29,7 @@
 
 #include <gtsam/base/debug.h>
 #include <gtsam/nonlinear/NonlinearFactor.h>
+#include <gtsam/base/numericalDerivative.h>
 
 #include "JPLNavState.h"
 #include "utils/quat_ops.h"
@@ -64,7 +65,6 @@ namespace gtsam {
 
         /// Construct from the two linking JPLNavStates, preingration measurement, and its covariance
         ViconPoseTimeoffsetFactor(Key kstate, Key kR_BtoI, Key kp_BinI, Key kt_off, Eigen::Matrix<double,6,6> covariance, double timestamp, double timeB0, JPLQuaternion q_VtoB0, Vector3 p_B0inV, double timeB1, JPLQuaternion q_VtoB1, Vector3 p_B1inV) :
-                //NoiseModelFactor3<JPLNavState, Rot3, Vector3>(noiseModel::Gaussian::Covariance(covariance), kstate, kR_BtoI, kp_BinI) {
                 NoiseModelFactor4<JPLNavState, Rot3, Vector3, Vector1>(noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(1.345), noiseModel::Gaussian::Covariance(covariance)), kstate, kR_BtoI, kp_BinI, kt_off) {
             this->m_time = timestamp;
             this->m_timeB0 = timeB0;

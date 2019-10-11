@@ -92,6 +92,11 @@ gtsam::Vector ViconPoseTimeoffsetFactor::evaluateError(const JPLNavState& state,
 
     // Compute the Jacobian in respect to the first JPLNavState if needed
     if(H1) {
+        *H1 = numericalDerivative41<Vector,JPLNavState,Rot3,Vector3,Vector1>(
+                boost::bind(&ViconPoseTimeoffsetFactor::evaluateError, this,
+                            _1, _2, _3, _4,
+                            boost::none, boost::none, boost::none, boost::none),
+                state, R_BtoI, p_BinI, t_off);
         Eigen::Matrix<double,6,15> H = Eigen::Matrix<double,6,15>::Zero();
         H.block(0,0,3,3) = quat_2_Rot(Inv(q_BtoI));
         H.block(3,0,3,3) = -quat_2_Rot(Inv(q_VtoI))*skew_x(p_BinI);
@@ -104,26 +109,41 @@ gtsam::Vector ViconPoseTimeoffsetFactor::evaluateError(const JPLNavState& state,
     // NOTE: gtsam uses the right expodential expansion of the rotation error
     // NOTE: (I-skew(theta1)*R_VtoB = (R_BtoI*(I+skew(theta2)))^T*R_VtoI
     if(H2) {
-        Eigen::Matrix<double,6,3> H = Eigen::Matrix<double,6,3>::Zero();
+        *H2 = numericalDerivative42<Vector,JPLNavState,Rot3,Vector3,Vector1>(
+                boost::bind(&ViconPoseTimeoffsetFactor::evaluateError, this,
+                            _1, _2, _3, _4,
+                            boost::none, boost::none, boost::none, boost::none),
+                state, R_BtoI, p_BinI, t_off);
+        //Eigen::Matrix<double,6,3> H = Eigen::Matrix<double,6,3>::Zero();
         //H.block(0,0,3,3) = -quat_2_Rot(Inv(q_BtoI)); // our form
-        H.block(0,0,3,3).setIdentity(); // since we use gtsam rot3
-        *H2 = *OptionalJacobian<6,3>(H);
+        //H.block(0,0,3,3).setIdentity(); // since we use gtsam rot3
+        //*H2 = *OptionalJacobian<6,3>(H);
     }
 
     // Compute the Jacobian in respect position extrinics between BODY and IMU frames
     if(H3) {
-        Eigen::Matrix<double,6,3> H = Eigen::Matrix<double,6,3>::Zero();
-        H.block(3,0,3,3) = quat_2_Rot(Inv(q_VtoI));
-        *H3 = *OptionalJacobian<6,3>(H);
+        *H3 = numericalDerivative43<Vector,JPLNavState,Rot3,Vector3,Vector1>(
+                boost::bind(&ViconPoseTimeoffsetFactor::evaluateError, this,
+                            _1, _2, _3, _4,
+                            boost::none, boost::none, boost::none, boost::none),
+                state, R_BtoI, p_BinI, t_off);
+        //Eigen::Matrix<double,6,3> H = Eigen::Matrix<double,6,3>::Zero();
+        //H.block(3,0,3,3) = quat_2_Rot(Inv(q_VtoI));
+        //*H3 = *OptionalJacobian<6,3>(H);
     }
 
 
     // Compute the Jacobian in respect time offset
     if(H4) {
-        Eigen::Matrix<double,6,1> H = Eigen::Matrix<double,6,1>::Zero();
-        H.block(0,0,3,1) = vee(Log(R_0to1))/(m_timeB1-m_timeB0);
-        H.block(3,0,3,1) = (mp_B0inV-mp_B1inV)/(m_timeB1-m_timeB0);
-        *H4 = *OptionalJacobian<6,1>(H);
+        *H4 = numericalDerivative44<Vector,JPLNavState,Rot3,Vector3,Vector1>(
+                boost::bind(&ViconPoseTimeoffsetFactor::evaluateError, this,
+                        _1, _2, _3, _4,
+                        boost::none, boost::none, boost::none, boost::none),
+                        state, R_BtoI, p_BinI, t_off);
+        //Eigen::Matrix<double,6,1> H = Eigen::Matrix<double,6,1>::Zero();
+        //H.block(0,0,3,1) = Jr(lambda*vee(Log(R_0to1))).transpose()*vee(Log(R_0to1))/(m_timeB1-m_timeB0);
+        //H.block(3,0,3,1) = (mp_B0inV-mp_B1inV)/(m_timeB1-m_timeB0);
+        //*H4 = *OptionalJacobian<6,1>(H);
     }
 
 
