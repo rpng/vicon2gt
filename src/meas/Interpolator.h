@@ -29,6 +29,7 @@
 
 
 #include <vector>
+#include <algorithm>
 #include <Eigen/Eigen>
 #include <ros/ros.h>
 
@@ -49,6 +50,9 @@ struct POSEDATA {
     Eigen::Matrix<double,3,3> R_p;
     Eigen::Matrix<double,3,3> R_v;
     Eigen::Matrix<double,3,3> R_w;
+    // Comparison operator
+    bool operator< ( const POSEDATA& s ) const { return timestamp < s.timestamp; }
+    bool operator> ( const POSEDATA& s ) const { return timestamp > s.timestamp; }
 };
 
 
@@ -83,9 +87,9 @@ public:
 
 private:
 
-
     // Our history of POSE messages (time, ori, pos, vel, ang)
-    std::vector<POSEDATA> pose_data;
+    // Note that this is sorted by timestamps so we can binary search through it....
+    std::set<POSEDATA,std::less<POSEDATA>> pose_data;
 
 
 

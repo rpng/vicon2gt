@@ -51,27 +51,16 @@ gtsam::Vector ViconPoseTimeoffsetFactor::evaluateError(const JPLNavState& state,
     JPLQuaternion q_VtoB = quat_multiply(Inv(q_BtoI),q_VtoI);
     Eigen::Matrix<double,3,1> p_BinV = p_IinV + quat_2_Rot(q_VtoI).transpose()*p_BinI;
 
-
-
     //================================================================================
     //================================================================================
     //================================================================================
 
-
-    // Calculate our measurement at the timestep m_time given our current pose and time offsets
-    // Our lamda time-distance fraction
-    double lambda = (m_time+t_off(0)-m_timeB0)/(m_timeB1-m_timeB0);
-
-    // Bounding SO(3) orientations
-    Eigen::Matrix<double,3,3> R_Gto0 = quat_2_Rot(mq_VtoB0);
-    Eigen::Matrix<double,3,3> R_Gto1 = quat_2_Rot(mq_VtoB1);
-
-    // Now perform the interpolation
-    Eigen::Matrix<double,3,3> R_0to1 = R_Gto1*R_Gto0.transpose();
-    Eigen::Matrix<double,3,3> R_0toi = Exp(lambda*vee(Log(R_0to1)));
-    Eigen::Matrix<double,4,1> q_interp = rot_2_quat(R_0toi*R_Gto0);
-    Eigen::Matrix<double,3,1> p_interp = (1-lambda)*mp_B0inV + lambda*mp_B1inV;
-
+    // Get our interpolated pose at the node timestep
+    Eigen::Matrix<double,4,1> q_interp;
+    Eigen::Matrix<double,3,1> p_interp;
+    Eigen::Matrix<double,6,6> R_interp;
+    bool has_vicon = m_interpolator->get_pose(m_time+t_off(0),q_interp,p_interp,R_interp);
+    assert(has_vicon);
 
     // Our error vector [delta = (orientation, position)]
     Vector6 error;
@@ -83,12 +72,9 @@ gtsam::Vector ViconPoseTimeoffsetFactor::evaluateError(const JPLNavState& state,
     error.block(0,0,3,1) = 2*q_r.block(0,0,3,1);
     error.block(3,0,3,1) = p_BinV - p_interp;
 
-
     //================================================================================
     //================================================================================
     //================================================================================
-
-
 
     // Compute the Jacobian in respect to the first JPLNavState if needed
     if(H1) {
@@ -97,11 +83,11 @@ gtsam::Vector ViconPoseTimeoffsetFactor::evaluateError(const JPLNavState& state,
                             _1, _2, _3, _4,
                             boost::none, boost::none, boost::none, boost::none),
                 state, R_BtoI, p_BinI, t_off);
-        Eigen::Matrix<double,6,15> H = Eigen::Matrix<double,6,15>::Zero();
-        H.block(0,0,3,3) = quat_2_Rot(Inv(q_BtoI));
-        H.block(3,0,3,3) = -quat_2_Rot(Inv(q_VtoI))*skew_x(p_BinI);
-        H.block(3,12,3,3) = Eigen::Matrix<double,3,3>::Identity();
-        *H1 = *OptionalJacobian<6,15>(H);
+        //Eigen::Matrix<double,6,15> H = Eigen::Matrix<double,6,15>::Zero();
+        //H.block(0,0,3,3) = quat_2_Rot(Inv(q_BtoI));
+        //H.block(3,0,3,3) = -quat_2_Rot(Inv(q_VtoI))*skew_x(p_BinI);
+        //H.block(3,12,3,3) = Eigen::Matrix<double,3,3>::Identity();
+        //*H1 = *OptionalJacobian<6,15>(H);
     }
 
     // Compute the Jacobian in respect orientation extrinics between BODY and IMU frames
@@ -139,7 +125,7 @@ gtsam::Vector ViconPoseTimeoffsetFactor::evaluateError(const JPLNavState& state,
                 boost::bind(&ViconPoseTimeoffsetFactor::evaluateError, this,
                         _1, _2, _3, _4,
                         boost::none, boost::none, boost::none, boost::none),
-                        state, R_BtoI, p_BinI, t_off);
+                        state, R_BtoI, p_BinI, t_off, 0.3);
         //Eigen::Matrix<double,6,1> H = Eigen::Matrix<double,6,1>::Zero();
         //H.block(0,0,3,1) = Jr(lambda*vee(Log(R_0to1))).transpose()*vee(Log(R_0to1))/(m_timeB1-m_timeB0);
         //H.block(3,0,3,1) = (mp_B0inV-mp_B1inV)/(m_timeB1-m_timeB0);

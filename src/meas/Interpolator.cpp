@@ -44,7 +44,7 @@ void Interpolator::feed_pose(double timestamp, Eigen::Matrix<double,4,1> q, Eige
     data.R_p = R_p;
 
     // Append it to our vector
-    pose_data.emplace_back(data);
+    pose_data.insert(data);
 
 }
 
@@ -71,7 +71,7 @@ void Interpolator::feed_odom(double timestamp, Eigen::Matrix<double,4,1> q, Eige
     data.R_w = R_w;
 
     // Append it to our vector
-    pose_data.emplace_back(data);
+    pose_data.insert(data);
 
 }
 
@@ -86,36 +86,46 @@ void Interpolator::feed_odom(double timestamp, Eigen::Matrix<double,4,1> q, Eige
 bool Interpolator::get_pose(double timestamp, Eigen::Matrix<double,4,1>& q,
                             Eigen::Matrix<double,3,1>& p, Eigen::Matrix<double,6,6>& R) {
 
-    // Set the default values
-    POSEDATA pose0, pose1, poseEXACT;
+    // Find our bounds for the desired timestamp
+    POSEDATA pose_to_find;
+    pose_to_find.timestamp = timestamp;
+    auto bounds = pose_data.equal_range(pose_to_find);
 
-    // Find the bounding poses
-    double min_time = -INFINITY;
-    double max_time = INFINITY;
-    bool found_exact = false;
-    bool found_older = false;
-    bool found_newer = false;
-
-    //Find the bounding poses for interpolation. If no older one is found, measurement is unusable
-    for (size_t i=0; i<pose_data.size(); i++) {
-        if (pose_data.at(i).timestamp == timestamp){
-            poseEXACT = pose_data.at(i);
-            found_exact = true;
-        }
-        if (pose_data.at(i).timestamp > min_time && pose_data.at(i).timestamp <= timestamp){
-            pose0 = pose_data.at(i);
-            min_time = pose_data.at(i).timestamp;
-            found_older = true;
-        }
-        if (pose_data.at(i).timestamp < max_time && pose_data.at(i).timestamp >= timestamp){
-            pose1 = pose_data.at(i);
-            max_time = pose_data.at(i).timestamp;
-            found_newer = true;
-        }
+    // Best we can do at the beginning is just the first vicon pose
+    if(bounds.first==pose_data.begin()) {
+        // our pose
+        POSEDATA poseEXACT = *bounds.first;
+        // mean values
+        q = poseEXACT.q;
+        p = poseEXACT.p;
+        // meas covariance
+        R.setZero();
+        R.block(0,0,3,3) = poseEXACT.R_q;
+        R.block(3,3,3,3) = poseEXACT.R_p;
+        return false;
     }
 
+    // Return false if we do not have any bounding pose for this measurement (shouldn't happen)
+    if(bounds.first==pose_data.end() || bounds.second==pose_data.end()) {
+        // our pose
+        POSEDATA poseEXACT = *(--bounds.first);
+        // mean values
+        q = poseEXACT.q;
+        p = poseEXACT.p;
+        // meas covariance
+        R.setZero();
+        R.block(0,0,3,3) = poseEXACT.R_q;
+        R.block(3,3,3,3) = poseEXACT.R_p;
+        //ROS_ERROR("[INTERPOLATOR]: UNABLE TO FIND BOUNDING POSES, %d, %d",bounds.first==pose_data.end(),bounds.second==pose_data.end());
+        //ROS_ERROR("[INTERPOLATOR]: tmeas = %.9f | time0 = %.9f | time1 = %.9f", timestamp, time0, time1);
+        return false;
+    }
+    bounds.first--;
+
     // If we found an exact one, just return that
-    if(found_exact) {
+    if(bounds.first->timestamp==bounds.second->timestamp) {
+        // our pose
+        POSEDATA poseEXACT = *bounds.first;
         // mean values
         q = poseEXACT.q;
         p = poseEXACT.p;
@@ -126,13 +136,9 @@ bool Interpolator::get_pose(double timestamp, Eigen::Matrix<double,4,1>& q,
         return true;
     }
 
-
-    // Return false if we do not have any bounding pose for this measurement (shouldn't happen)
-    if(!found_older || !found_newer || min_time == max_time) {
-        //ROS_ERROR("[INTERPOLATOR]: UNABLE TO FIND BOUNDING POSES");
-        //ROS_ERROR("[INTERPOLATOR]: tmeas = %.9f | time0 = %.9f | time1 = %.9f", timestamp, time0, time1);
-        return false;
-    }
+    // Else set our bounds as the bounds our binary search found
+    POSEDATA pose0 = *bounds.first;
+    POSEDATA pose1 = *bounds.second;
 
     // Our lamda time-distance fraction
     double lambda = (timestamp-pose0.timestamp)/(pose1.timestamp-pose0.timestamp);
@@ -185,35 +191,23 @@ bool Interpolator::get_bounds(double timestamp,
                               double &time0, Eigen::Matrix<double,4,1>& q0, Eigen::Matrix<double,3,1>& p0, Eigen::Matrix<double,6,6>& R0,
                               double &time1, Eigen::Matrix<double,4,1>& q1, Eigen::Matrix<double,3,1>& p1, Eigen::Matrix<double,6,6>& R1) {
 
-    // Set the default values
-    POSEDATA pose0, pose1;
 
-    // Find the bounding poses
-    double min_time = -INFINITY;
-    double max_time = INFINITY;
-    bool found_older = false;
-    bool found_newer = false;
-
-    //Find the bounding poses for interpolation. If no older one is found, measurement is unusable
-    for (size_t i=0; i<pose_data.size(); i++) {
-        if (pose_data.at(i).timestamp > min_time && pose_data.at(i).timestamp <= timestamp){
-            pose0 = pose_data.at(i);
-            min_time = pose_data.at(i).timestamp;
-            found_older = true;
-        }
-        if (pose_data.at(i).timestamp < max_time && pose_data.at(i).timestamp > timestamp){
-            pose1 = pose_data.at(i);
-            max_time = pose_data.at(i).timestamp;
-            found_newer = true;
-        }
-    }
+    // Find our bounds for the desired timestamp
+    POSEDATA pose_to_find;
+    pose_to_find.timestamp = timestamp;
+    auto bounds = pose_data.equal_range(pose_to_find);
 
     // Return false if we do not have any bounding pose for this measurement (shouldn't happen)
-    if(!found_older || !found_newer || min_time == max_time) {
-        //ROS_ERROR("[INTERPOLATOR]: UNABLE TO FIND BOUNDING POSES");
+    if(bounds.first==pose_data.begin() || bounds.first==pose_data.end() || bounds.second==pose_data.end()) {
+        //ROS_ERROR("[INTERPOLATOR]: UNABLE TO FIND BOUNDING POSES, %d, %d",bounds.first==pose_data.end(),bounds.second==pose_data.end());
         //ROS_ERROR("[INTERPOLATOR]: tmeas = %.9f | time0 = %.9f | time1 = %.9f", timestamp, time0, time1);
         return false;
     }
+    bounds.first--;
+
+    // Else set our bounds as the bounds our binary search found
+    POSEDATA pose0 = *bounds.first;
+    POSEDATA pose1 = *bounds.second;
 
     // Pose 0
     time0 = pose0.timestamp;

@@ -133,7 +133,6 @@ void ViconGraphSolver::build_and_solve() {
         map_states.insert({timestamp_cameras.at(i),i});
     }
 
-
     // Loop a specified number of times, and keep solving the problem
     // One would want this if you want to relinearize the bias estimates in CPI
     bool is_first_time = true;
@@ -271,7 +270,7 @@ void ViconGraphSolver::build_problem(bool init_states) {
         }
         // Prior to make time offset stable
         //Vector1 sigma;
-        //sigma(0,0) = 2.0; // seconds
+        //sigma(0,0) = 0.5; // seconds
         //PriorFactor<Vector1> factor_timemag(T(0), values.at<Vector1>(T(0)), sigma);
         //graph->add(factor_timemag);
         ROS_INFO("[BUILD]: current time offset is %.4f", values.at<Vector1>(T(0))(0));
@@ -300,25 +299,29 @@ void ViconGraphSolver::build_problem(bool init_states) {
         double timestamp_corrected = (estimate_toff_vicon_to_imu)? timestamp+values.at<Vector1>(T(0))(0) : timestamp+init_toff_imu_to_vicon;
 
         // First get the vicon pose at the current time
-        double timeB0, timeB1;
-        Eigen::Matrix<double,4,1> q_VtoB, q_VtoB0, q_VtoB1;
-        Eigen::Matrix<double,3,1> p_BinV, p_B0inV, p_B1inV;
-        Eigen::Matrix<double,6,6> R_vicon, R_vicon0, R_vicon1;
-        bool has_vicon1 = interpolator->get_pose(timestamp_corrected,q_VtoB,p_BinV,R_vicon);
-        bool has_vicon2 = interpolator->get_bounds(timestamp_corrected,timeB0,q_VtoB0,p_B0inV,R_vicon0,timeB1,q_VtoB1,p_B1inV,R_vicon1);
+        Eigen::Matrix<double,4,1> q_VtoB;
+        Eigen::Matrix<double,3,1> p_BinV;
+        Eigen::Matrix<double,6,6> R_vicon;
+        bool has_vicon1 = interpolator->get_pose(timestamp_corrected-1.0,q_VtoB,p_BinV,R_vicon);
+        bool has_vicon2 = interpolator->get_pose(timestamp_corrected+1.0,q_VtoB,p_BinV,R_vicon);
+        bool has_vicon3 = interpolator->get_pose(timestamp_corrected,q_VtoB,p_BinV,R_vicon);
 
         // Skip if we don't have a vicon measurement for this pose
-        if(!has_vicon1 || !has_vicon2) {
+        if(!has_vicon1 || !has_vicon2 || !has_vicon3) {
             ROS_INFO("    - skipping camera time %.9f (no vicon pose found)",timestamp);
+            if(values.find(X(map_states[timestamp]))!=values.end()) {
+                values.erase(X(map_states[timestamp]));
+            }
             it1 = timestamp_cameras.erase(it1);
             continue;
         }
 
         // Check if we can do the inverse
-        if(std::isnan(R_vicon.norm()) || std::isnan(R_vicon.inverse().norm())
-            || std::isnan(R_vicon0.norm()) || std::isnan(R_vicon0.inverse().norm())
-            || std::isnan(R_vicon1.norm()) || std::isnan(R_vicon1.inverse().norm())) {
+        if(std::isnan(R_vicon.norm()) || std::isnan(R_vicon.inverse().norm())) {
             ROS_INFO("    - skipping camera time %.9f (R.norm = %.3f | Rinv.norm = %.3f)",timestamp,R_vicon.norm(),R_vicon.inverse().norm());
+            if(values.find(X(map_states[timestamp]))!=values.end()) {
+                values.erase(X(map_states[timestamp]));
+            }
             it1 = timestamp_cameras.erase(it1);
             continue;
         }
@@ -339,7 +342,7 @@ void ViconGraphSolver::build_problem(bool init_states) {
             ViconPoseFactor factor_vicon(X(map_states[timestamp]),C(0),C(1),R_vicon,q_VtoB,p_BinV);
             graph->add(factor_vicon);
         } else {
-            ViconPoseTimeoffsetFactor factor_vicon(X(map_states[timestamp]),C(0),C(1),T(0),R_vicon0,timestamp,timeB0,q_VtoB0,p_B0inV,timeB1,q_VtoB1,p_B1inV);
+            ViconPoseTimeoffsetFactor factor_vicon(X(map_states[timestamp]),C(0),C(1),T(0),R_vicon,timestamp,interpolator);
             graph->add(factor_vicon);
         }
 
@@ -412,7 +415,7 @@ void ViconGraphSolver::optimize_problem() {
     config.absoluteErrorTol = 1e-30;
     config.relativeErrorTol = 1e-30;
     config.lambdaUpperBound = 1e20;
-    config.maxIterations = 30;
+    config.maxIterations = 20;
     LevenbergMarquardtOptimizer optimizer(*graph, values, config);
 
     // Setup optimizer (dogleg)
@@ -421,7 +424,6 @@ void ViconGraphSolver::optimize_problem() {
     //params.relativeErrorTol = 1e-10;
     //params.absoluteErrorTol = 1e-10;
     //DoglegOptimizer optimizer(*graph, values, params);
-
 
     // Perform the optimization
     ROS_INFO("[VICON-GRAPH]: begin optimization");

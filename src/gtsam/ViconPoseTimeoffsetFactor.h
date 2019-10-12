@@ -32,6 +32,7 @@
 #include <gtsam/base/numericalDerivative.h>
 
 #include "JPLNavState.h"
+#include "meas/Interpolator.h"
 #include "utils/quat_ops.h"
 
 using namespace gtsam;
@@ -52,48 +53,21 @@ namespace gtsam {
 
         double m_time; ///< time in the vicon clock that those pose should be at
 
-        double m_timeB0; /// < time the first pose occured at
-        JPLQuaternion mq_VtoB0; ///< orientation of this pose in the vicon frame
-        Vector3 mp_B0inV; ///< position of the body in the vicon frame
-
-        double m_timeB1; /// < time the second pose occured at
-        JPLQuaternion mq_VtoB1; ///< orientation of this pose in the vicon frame
-        Vector3 mp_B1inV; ///< position of the body in the vicon frame
+        Interpolator* m_interpolator; ///< interpolator that has vicon poses in it
 
 
     public:
 
         /// Construct from the two linking JPLNavStates, preingration measurement, and its covariance
-        ViconPoseTimeoffsetFactor(Key kstate, Key kR_BtoI, Key kp_BinI, Key kt_off, Eigen::Matrix<double,6,6> covariance, double timestamp, double timeB0, JPLQuaternion q_VtoB0, Vector3 p_B0inV, double timeB1, JPLQuaternion q_VtoB1, Vector3 p_B1inV) :
+        ViconPoseTimeoffsetFactor(Key kstate, Key kR_BtoI, Key kp_BinI, Key kt_off, Eigen::Matrix<double,6,6> covariance, double timestamp, Interpolator* interpolator) :
                 NoiseModelFactor4<JPLNavState, Rot3, Vector3, Vector1>(noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(1.345), noiseModel::Gaussian::Covariance(covariance)), kstate, kR_BtoI, kp_BinI, kt_off) {
             this->m_time = timestamp;
-            this->m_timeB0 = timeB0;
-            this->mq_VtoB0 = q_VtoB0;
-            this->mp_B0inV = p_B0inV;
-            this->m_timeB1 = timeB1;
-            this->mq_VtoB1 = q_VtoB1;
-            this->mp_B1inV = p_B1inV;
+            this->m_interpolator = interpolator;
         }
 
-        /// Rotation from vicon
-        JPLQuaternion q_VtoB0() const {
-            return mq_VtoB0;
-        }
-
-        /// Position in the vicon frame
-        Vector3 p_B0inV() const {
-            return mp_B0inV;
-        }
-
-
-        /// Rotation from vicon
-        JPLQuaternion q_VtoB1() const {
-            return mq_VtoB1;
-        }
-
-        /// Position in the vicon frame
-        Vector3 p_B1inV() const {
-            return mp_B1inV;
+        /// Timestamp we will interpolate to
+        double time() const {
+            return m_time;
         }
 
 
@@ -106,16 +80,13 @@ namespace gtsam {
         /// How this factor gets printed in the ostream
         GTSAM_EXPORT
         friend std::ostream &operator<<(std::ostream &os, const ViconPoseTimeoffsetFactor& factor) {
-            os << "mq_VtoB0:[" << factor.q_VtoB0()(0) << ", " << factor.q_VtoB0()(1) << ", " << factor.q_VtoB0()(2) << ", " << factor.q_VtoB0()(3) << "]'" << endl;
-            os << "mp_B0inV:[" << factor.p_B0inV()(0) << ", " << factor.p_B0inV()(1) << ", " << factor.p_B0inV()(2) << "]'" << endl;
-            os << "mq_VtoB1:[" << factor.q_VtoB1()(0) << ", " << factor.q_VtoB1()(1) << ", " << factor.q_VtoB1()(2) << ", " << factor.q_VtoB1()(3) << "]'" << endl;
-            os << "mp_B1inV:[" << factor.p_B1inV()(0) << ", " << factor.p_B1inV()(1) << ", " << factor.p_B1inV()(2) << "]'" << endl;
+            os << "m_time:[" << factor.time() << "]'" << endl;
             return os;
         }
 
         /// Print function for this factor
         void print(const std::string& s, const KeyFormatter& keyFormatter = DefaultKeyFormatter) const {
-            std::cout << s << "ViconPoseFactor(" << keyFormatter(this->key1()) << "," << keyFormatter(this->key2()) << "," << keyFormatter(this->key3()) << ")" << std::endl;
+            std::cout << s << "ViconPoseTimeoffsetFactor(" << keyFormatter(this->key1()) << "," << keyFormatter(this->key2()) << "," << keyFormatter(this->key3()) << "," << keyFormatter(this->key4()) << ")" << std::endl;
             std::cout << "  measured: " << std::endl << *this << std::endl;
             this->noiseModel_->print("  noise model: ");
         }
@@ -127,10 +98,7 @@ namespace gtsam {
             if(e == NULL) return false;
             // Success, compare base noise values and the measurement values
             return NoiseModelFactor4<JPLNavState,Rot3,Vector3,Vector1>::equals(*e, tol)
-                   && gtsam::equal(mq_VtoB0, e->mq_VtoB0, tol)
-                   && gtsam::equal(mp_B0inV, e->mp_B0inV, tol)
-                   && gtsam::equal(mq_VtoB1, e->mq_VtoB1, tol)
-                   && gtsam::equal(mp_B1inV, e->mp_B1inV, tol);
+                   && gtsam::equal(m_time, e->m_time, tol);
         }
 
     };
