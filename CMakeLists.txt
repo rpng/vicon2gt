@@ -10,6 +10,7 @@ SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/)
 find_package(catkin REQUIRED COMPONENTS roscpp rosbag std_msgs geometry_msgs sensor_msgs nav_msgs visualization_msgs)
 
 # Include libraries
+find_package(Eigen3 REQUIRED) # built gtsam with cmake -DGTSAM_USE_SYSTEM_EIGEN=ON ..
 find_package(Boost REQUIRED COMPONENTS system filesystem thread date_time serialization regex timer)
 find_package(GTSAM REQUIRED) # source: https://bitbucket.org/gtborg/gtsam/
 find_package(MKL REQUIRED) # intel MKL library
@@ -47,7 +48,7 @@ file(GLOB_RECURSE external_sources external/*.cpp)
 # Include our header files
 include_directories(
     src
-    external
+    ${EIGEN3_INCLUDE_DIR}
     ${Boost_INCLUDE_DIRS}
     ${PCL_INCLUDE_DIRS}
     ${MLK_INCLUDE_DIRS}

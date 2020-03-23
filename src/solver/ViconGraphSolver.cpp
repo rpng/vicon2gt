@@ -163,9 +163,9 @@ void ViconGraphSolver::build_and_solve() {
     cout << "R_BtoI: " << endl << values_result.at<Rot3>(C(0)).matrix() << endl << endl;
     cout << "p_BinI: " << endl << values_result.at<Vector3>(C(1)) << endl << endl;
     cout << "gravity: " << endl << values_result.at<Vector3>(G(0)) << endl << endl;
-    cout << "gravity norm: " << endl << values_result.at<Vector3>(G(0)).norm() << endl;
-    if(estimate_toff_vicon_to_imu) cout << "t_off_vicon_to_imu: " << endl << values_result.at<Vector1>(T(0)) << endl;
-    else cout << "t_off_vicon_to_imu: " << endl << 0.0000 << endl;
+    cout << "gravity norm: " << endl << values_result.at<Vector3>(G(0)).norm() << endl << endl;
+    if(estimate_toff_vicon_to_imu) cout << "t_off_vicon_to_imu: " << endl << values_result.at<Vector1>(T(0)) << endl << endl;
+    else cout << "t_off_vicon_to_imu: " << endl << 0.0000 << endl << endl;
     cout << "======================================" << endl << endl;
 
 
@@ -229,9 +229,9 @@ void ViconGraphSolver::write_to_file(std::string csvfilepath, std::string infofi
     of_info << "q_BtoI: " << endl << rot_2_quat(values_result.at<Rot3>(C(0)).matrix()) << endl << endl;
     of_info << "p_BinI: " << endl << values_result.at<Vector3>(C(1)) << endl << endl;
     of_info << "gravity: " << endl << values_result.at<Vector3>(G(0)) << endl << endl;
-    of_info << "gravity norm: " << endl << values_result.at<Vector3>(G(0)).norm() << endl;
-    if(estimate_toff_vicon_to_imu) of_info << "t_off_vicon_to_imu: " << endl << values_result.at<Vector1>(T(0)) << endl;
-    else of_info << "t_off_vicon_to_imu: " << endl << 0.0000 << endl;
+    of_info << "gravity norm: " << endl << values_result.at<Vector3>(G(0)).norm() << endl << endl;
+    if(estimate_toff_vicon_to_imu) of_info << "t_off_vicon_to_imu: " << endl << values_result.at<Vector1>(T(0)) << endl << endl;
+    else of_info << "t_off_vicon_to_imu: " << endl << 0.0000 << endl << endl;
     of_info.close();
 
 }
