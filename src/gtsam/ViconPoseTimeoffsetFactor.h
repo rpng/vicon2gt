@@ -53,14 +53,17 @@ namespace gtsam {
 
         double m_time; ///< time in the vicon clock that those pose should be at
 
-        Interpolator* m_interpolator; ///< interpolator that has vicon poses in it
+        std::shared_ptr<Interpolator> m_interpolator; ///< interpolator that has vicon poses in it
 
 
     public:
 
         /// Construct from the two linking JPLNavStates, preingration measurement, and its covariance
-        ViconPoseTimeoffsetFactor(Key kstate, Key kR_BtoI, Key kp_BinI, Key kt_off, Eigen::Matrix<double,6,6> covariance, double timestamp, Interpolator* interpolator) :
-                NoiseModelFactor4<JPLNavState, Rot3, Vector3, Vector1>(noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(1.345), noiseModel::Gaussian::Covariance(covariance)), kstate, kR_BtoI, kp_BinI, kt_off) {
+        ViconPoseTimeoffsetFactor(Key kstate, Key kR_BtoI, Key kp_BinI, Key kt_off, double timestamp, std::shared_ptr<Interpolator> interpolator) :
+                NoiseModelFactor4<JPLNavState, Rot3, Vector3, Vector1>(noiseModel::Robust::Create(
+                        noiseModel::mEstimator::Huber::Create(1.345),
+                         noiseModel::Gaussian::Covariance(Eigen::Matrix<double,6,6>::Identity())
+                        ), kstate, kR_BtoI, kp_BinI, kt_off) {
             this->m_time = timestamp;
             this->m_interpolator = interpolator;
         }

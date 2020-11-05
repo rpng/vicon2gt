@@ -24,9 +24,8 @@
  */
 
 
-
-
 #include <cmath>
+#include <memory>
 #include <vector>
 #include <iomanip>
 #include <fstream>
@@ -150,8 +149,8 @@ int main(int argc, char** argv)
     //===================================================================================
 
     // Our data storage objects
-    Propagator* propagator = new Propagator(sigma_w,sigma_wb,sigma_a,sigma_ab);
-    Interpolator* interpolator = new Interpolator();
+    std::shared_ptr<Propagator> propagator = std::make_shared<Propagator>(sigma_w,sigma_wb,sigma_a,sigma_ab);
+    std::shared_ptr<Interpolator> interpolator = std::make_shared<Interpolator>();
     std::vector<double> timestamp_cameras;
 
     // Counts on how many measurements we have
@@ -166,9 +165,10 @@ int main(int argc, char** argv)
         if (!ros::ok())
             break;
 
+
         // Handle IMU messages
         sensor_msgs::Imu::ConstPtr s0 = m.instantiate<sensor_msgs::Imu>();
-        if (s0 != NULL && m.getTopic() == topic_imu) {
+        if (s0 != nullptr && m.getTopic() == topic_imu) {
             Eigen::Matrix<double,3,1> wm, am;
             wm << s0->angular_velocity.x, s0->angular_velocity.y, s0->angular_velocity.z;
             am << s0->linear_acceleration.x, s0->linear_acceleration.y, s0->linear_acceleration.z;
@@ -177,15 +177,14 @@ int main(int argc, char** argv)
         }
 
         // Handle CAMEREA messages
-        sensor_msgs::Image::ConstPtr s1 = m.instantiate<sensor_msgs::Image>();
-        if (s1 != NULL && m.getTopic() == topic_cam) {
-            timestamp_cameras.push_back(s1->header.stamp.toSec());
+        if (m.getTopic() == topic_cam) {
+            timestamp_cameras.push_back(m.getTime().toSec());
             ct_cam++;
         }
 
         // Handle VICON messages
         nav_msgs::Odometry::ConstPtr s2 = m.instantiate<nav_msgs::Odometry>();
-        if (s2 != NULL && m.getTopic() == topic_vicon) {
+        if (s2 != nullptr && m.getTopic() == topic_vicon) {
             // load orientation and position of the vicon
             Eigen::Matrix<double,4,1> q;
             Eigen::Matrix<double,3,1> p;
@@ -206,7 +205,7 @@ int main(int argc, char** argv)
 
         // Handle VICON messages
         geometry_msgs::TransformStamped::ConstPtr s3 = m.instantiate<geometry_msgs::TransformStamped>();
-        if (s3 != NULL && m.getTopic() == topic_vicon) {
+        if (s3 != nullptr && m.getTopic() == topic_vicon) {
             // load orientation and position of the vicon
             Eigen::Matrix<double,4,1> q;
             Eigen::Matrix<double,3,1> p;
@@ -219,7 +218,7 @@ int main(int argc, char** argv)
 
         // Handle VICON messages
         geometry_msgs::PoseStamped::ConstPtr s4 = m.instantiate<geometry_msgs::PoseStamped>();
-        if (s4 != NULL && m.getTopic() == topic_vicon) {
+        if (s4 != nullptr && m.getTopic() == topic_vicon) {
             // load orientation and position of the vicon
             Eigen::Matrix<double,4,1> q;
             Eigen::Matrix<double,3,1> p;

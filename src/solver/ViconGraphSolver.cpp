@@ -34,8 +34,8 @@
  * Default constructor.
  * Will load all needed configuration variables from the launch file and construct the graph.
  */
-ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, Propagator* propagator,
-                                   Interpolator* interpolator, std::vector<double> timestamp_cameras) {
+ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagator> propagator,
+                                   std::shared_ptr<Interpolator> interpolator, std::vector<double> timestamp_cameras) {
 
     // save measurement data
     this->propagator = propagator;
@@ -135,18 +135,19 @@ void ViconGraphSolver::build_and_solve() {
 
     // Loop a specified number of times, and keep solving the problem
     // One would want this if you want to relinearize the bias estimates in CPI
-    bool is_first_time = true;
     for(int i=0; i<=num_loop_relin; i++) {
 
         // Build the problem
-        build_problem(is_first_time);
-        is_first_time = false;
+        build_problem(i==0);
 
         // optimize the graph.
         optimize_problem();
 
         // move values forward in time
         values = values_result;
+
+        // Debug print what the current time offset is
+        if(estimate_toff_vicon_to_imu) ROS_INFO("current t_off = %.3f",values.at<Vector1>(T(0))(0));
 
         // Now print timing statistics
         ROS_INFO("\u001b[34m[TIME]: %.4f to build\u001b[0m",(rT2-rT1).total_microseconds() * 1e-6);
@@ -269,10 +270,10 @@ void ViconGraphSolver::build_problem(bool init_states) {
             values.insert(T(0), temp);
         }
         // Prior to make time offset stable
-        //Vector1 sigma;
-        //sigma(0,0) = 0.5; // seconds
-        //PriorFactor<Vector1> factor_timemag(T(0), values.at<Vector1>(T(0)), sigma);
-        //graph->add(factor_timemag);
+        Vector1 sigma;
+        sigma(0,0) = 0.02; // seconds
+        PriorFactor<Vector1> factor_timemag(T(0), values.at<Vector1>(T(0)), sigma);
+        graph->add(factor_timemag);
         ROS_INFO("[BUILD]: current time offset is %.4f", values.at<Vector1>(T(0))(0));
     }
 
@@ -283,7 +284,7 @@ void ViconGraphSolver::build_problem(bool init_states) {
         MagnitudePrior factor_gav(G(0),sigma,init_grav_inV.norm());
         graph->add(factor_gav);
     } else {
-        ROS_INFO("[BUILD]: current gravity mag is %.4f", values.at<Vector1>(G(0)).norm());
+        ROS_INFO("[BUILD]: current gravity mag is %.4f", values.at<Vector3>(G(0)).norm());
     }
 
     // Loop through each camera time and construct the graph
@@ -342,7 +343,7 @@ void ViconGraphSolver::build_problem(bool init_states) {
             ViconPoseFactor factor_vicon(X(map_states[timestamp]),C(0),C(1),R_vicon,q_VtoB,p_BinV);
             graph->add(factor_vicon);
         } else {
-            ViconPoseTimeoffsetFactor factor_vicon(X(map_states[timestamp]),C(0),C(1),T(0),R_vicon,timestamp,interpolator);
+            ViconPoseTimeoffsetFactor factor_vicon(X(map_states[timestamp]),C(0),C(1),T(0),timestamp,interpolator);
             graph->add(factor_vicon);
         }
 

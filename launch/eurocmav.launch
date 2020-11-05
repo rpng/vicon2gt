@@ -3,7 +3,7 @@
 
     <!-- dataset name -->
     <!-- V1_01_easy, V1_02_medium, V1_03_difficult, V2_01_easy, V2_02_medium, V2_03_difficult -->
-    <arg name="dataset" value="V1_03_difficult" />
+    <arg name="dataset" value="V1_02_medium" />
 
 
     <!-- MASTER NODE! -->
@@ -33,7 +33,7 @@
         <rosparam param="p_BinI">[0.0701351, -0.0162268, -0.128389]</rosparam>
         <param name="toff_imu_to_vicon"          type="double" value="0.00" />
         <param name="enforce_grav_mag"           type="bool"   value="true" />
-        <param name="num_loop_relin"             type="int"    value="5" />
+        <param name="num_loop_relin"             type="int"    value="0" />
         <param name="estimate_toff_vicon_to_imu" type="bool"   value="true" />
 
 

@@ -75,8 +75,8 @@ class ViconGraphSolver
 public:
 
     // Default constuctor
-    ViconGraphSolver(ros::NodeHandle& nh, Propagator* propagator,
-                     Interpolator* interpolator, std::vector<double> timestamp_cameras);
+    ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagator> propagator,
+                     std::shared_ptr<Interpolator> interpolator, std::vector<double> timestamp_cameras);
 
 
     // Build the graph and solve it
@@ -99,8 +99,8 @@ private:
     boost::posix_time::ptime rT1, rT2, rT3, rT4, rT5, rT6, rT7;
 
     // Measurement data from the rosbag
-    Propagator* propagator;
-    Interpolator* interpolator;
+    std::shared_ptr<Propagator> propagator;
+    std::shared_ptr<Interpolator> interpolator;
     std::vector<double> timestamp_cameras;
 
     // Initial estimates of our variables

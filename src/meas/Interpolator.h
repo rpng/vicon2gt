@@ -78,6 +78,9 @@ public:
     // If we don't have that pose in our vector, we will perform interpolation to get it
     bool get_pose(double timestamp, Eigen::Matrix<double,4,1>& q, Eigen::Matrix<double,3,1>& p, Eigen::Matrix<double,6,6>& R);
 
+    // Given a timestamp, this will get the pose at that time
+    // If we don't have that pose in our vector, we will perform interpolation to get it
+    bool get_pose_with_jacobian(double timestamp, Eigen::Matrix<double,4,1>& q, Eigen::Matrix<double,3,1>& p, Eigen::Matrix<double,6,6>& R, Eigen::Matrix<double,6,1>& H_toff);
 
     // Given a timestamp, this will find the bounding poses for them
     bool get_bounds(double timestamp,

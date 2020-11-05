@@ -12,8 +12,8 @@ find_package(catkin REQUIRED COMPONENTS roscpp rosbag std_msgs geometry_msgs sen
 # Include libraries
 find_package(Eigen3 REQUIRED) # built gtsam with cmake -DGTSAM_USE_SYSTEM_EIGEN=ON ..
 find_package(Boost REQUIRED COMPONENTS system filesystem thread date_time serialization regex timer)
-find_package(GTSAM REQUIRED) # source: https://bitbucket.org/gtborg/gtsam/
-find_package(MKL REQUIRED) # intel MKL library
+find_package(GTSAM REQUIRED)
+set(GTSAM_LIBRARIES gtsam)
 
 # Describe catkin project
 catkin_package(
@@ -62,7 +62,7 @@ list(APPEND thirdparty_libraries
     ${OpenCV_LIBRARIES}
     ${PCL_LIBRARIES}
     ${MKL_LIBRARIES}
-    gtsam
+    ${GTSAM_LIBRARIES}
     ${catkin_LIBRARIES}
 )
 
