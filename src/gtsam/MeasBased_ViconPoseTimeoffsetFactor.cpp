@@ -1,8 +1,7 @@
 /**
  * MIT License
- * Copyright (c) 2018 Patrick Geneva @ University of Delaware (Robot Perception & Navigation Group)
- * Copyright (c) 2018 Kevin Eckenhoff @ University of Delaware (Robot Perception & Navigation Group)
- * Copyright (c) 2018 Guoquan Huang @ University of Delaware (Robot Perception & Navigation Group)
+ * Copyright (c) 2020 Patrick Geneva @ University of Delaware (Robot Perception & Navigation Group)
+ * Copyright (c) 2020 Guoquan Huang @ University of Delaware (Robot Perception & Navigation Group)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +23,7 @@
  */
 
 
-#include "ViconPoseTimeoffsetFactor.h"
+#include "MeasBased_ViconPoseTimeoffsetFactor.h"
 
 
 using namespace std;
@@ -34,8 +33,8 @@ using namespace gtsam;
 /**
  * Called on when optimizing to get the error of this measurement
  */
-gtsam::Vector ViconPoseTimeoffsetFactor::evaluateError(const JPLNavState& state, const Rot3& R_BtoI, const Vector3& p_BinI, const Vector1& t_off,
-                                             boost::optional<Matrix&> H1, boost::optional<Matrix&> H2, boost::optional<Matrix&> H3, boost::optional<Matrix&> H4) const {
+gtsam::Vector MeasBased_ViconPoseTimeoffsetFactor::evaluateError(const JPLNavState& state, const Rot3& R_BtoI, const Vector3& p_BinI, const Vector1& t_off,
+                                                                 boost::optional<Matrix&> H1, boost::optional<Matrix&> H2, boost::optional<Matrix&> H3, boost::optional<Matrix&> H4) const {
 
 
     //================================================================================

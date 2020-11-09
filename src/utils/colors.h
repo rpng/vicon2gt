@@ -22,35 +22,28 @@
  * SOFTWARE.
  */
 
+#ifndef COLOR_MACROS
+#define COLOR_MACROS
 
-#include "MagnitudePrior.h"
-
-
-using namespace std;
-using namespace gtsam;
-
-
-/**
- * Called on when optimizing to get the error of this measurement
- */
-gtsam::Vector MagnitudePrior::evaluateError(const Vector3& vec, boost::optional<Matrix&> H1) const {
-
-    // Our error vector (just a scalar)
-    Vector1 error;
-    error(0,0) = vec.norm()-m_mag;
-
-    // Compute the Jacobian in respect to the vector
-    if(H1) {
-        Eigen::MatrixXd H = vec.transpose()/vec.norm();
-        *H1 = *OptionalJacobian<Eigen::Dynamic,Eigen::Dynamic>(H);
-    }
-
-    // Finally return our error vector!
-    return error;
-}
+#define RESET       "\033[0m"
+#define BLACK       "\033[30m"             /* Black */
+#define RED         "\033[31m"             /* Red */
+#define GREEN       "\033[32m"             /* Green */
+#define YELLOW      "\033[33m"             /* Yellow */
+#define BLUE        "\033[34m"             /* Blue */
+#define MAGENTA     "\033[35m"             /* Magenta */
+#define CYAN        "\033[36m"             /* Cyan */
+#define WHITE       "\033[37m"             /* White */
+#define REDPURPLE   "\033[95m"             /* Red Purple */
+#define BOLDBLACK   "\033[1m\033[30m"      /* Bold Black */
+#define BOLDRED     "\033[1m\033[31m"      /* Bold Red */
+#define BOLDGREEN   "\033[1m\033[32m"      /* Bold Green */
+#define BOLDYELLOW  "\033[1m\033[33m"      /* Bold Yellow */
+#define BOLDBLUE    "\033[1m\033[34m"      /* Bold Blue */
+#define BOLDMAGENTA "\033[1m\033[35m"      /* Bold Magenta */
+#define BOLDCYAN    "\033[1m\033[36m"      /* Bold Cyan */
+#define BOLDWHITE   "\033[1m\033[37m"      /* Bold White */
+#define BOLDREDPURPLE   "\033[1m\033[95m"  /* Bold Red Purple */
 
 
-
-
-
-
+#endif  /* COLOR_MACROS */

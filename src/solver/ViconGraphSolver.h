@@ -43,8 +43,8 @@
 #include <gtsam/slam/PriorFactor.h>
 
 #include "cpi/CpiV1.h"
-#include "gtsam/ViconPoseFactor.h"
-#include "gtsam/ViconPoseTimeoffsetFactor.h"
+#include "gtsam/MeasBased_ViconPoseFactor.h"
+#include "gtsam/MeasBased_ViconPoseTimeoffsetFactor.h"
 #include "gtsam/JPLNavState.h"
 #include "gtsam/ImuFactorCPIv1.h"
 #include "gtsam/MagnitudePrior.h"
@@ -68,31 +68,70 @@ using gtsam::symbol_shorthand::T; // T: time offset between vicon and imu sensor
 
 
 
-
 class ViconGraphSolver
 {
 
 public:
 
-    // Default constuctor
+    /**
+     * @brief Default constructor for the solver
+     * @param nh ROS node handler we will load parameters from
+     * @param propagator Propagator with all IMU measurements inside
+     * @param interpolator Interpolator with all vicon poses inside
+     * @param timestamp_cameras Timestamps we are interested in estimating
+     */
     ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagator> propagator,
                      std::shared_ptr<Interpolator> interpolator, std::vector<double> timestamp_cameras);
 
 
-    // Build the graph and solve it
+    /**
+     * @brief This will build the graph and solve it.
+     * This function will take a while, but handles the GTSAM optimization.
+     */
     void build_and_solve();
 
-    // Will export the graph to csv file (will be in eth format)
+    /**
+     * @brief Will export the graph to csv file (will be in eth format).
+     *
+     * The CSV file will be in the eth format:
+     * `(time(ns),px,py,pz,qw,qx,qy,qz,vx,vy,vz,bwx,bwy,bwz,bax,bay,baz)`
+     *
+     * @param csvfilepath CSV export file we want to save
+     * @param infofilepath Txt file we will save the found calibration parameters
+     */
     void write_to_file(std::string csvfilepath, std::string infofilepath);
 
+    /**
+     * @brief Returns the current optimized poses which we estimated
+     * @param times Timestamps in seconds each pose will occur at
+     * @param poses Poses in quaternion position ordering
+     */
+    void get_imu_poses(std::vector<double> &times, std::vector<Eigen::Matrix<double,7,1>> &poses);
+
+    /**
+     * @brief Gets other calibration parameters we estimate online
+     * @param toff Time offset between vicon and IMU
+     * @param R Rotation between vicon and IMU
+     * @param p Position between vicon and IMU
+     * @param g Gravity in the vicon frame
+     */
+    void get_calibration(double &toff, Eigen::Matrix3d &R, Eigen::Vector3d &p, Eigen::Vector3d &g);
 
 
-private:
+protected:
 
-    // Function that will build the problem
+    /**
+     * @brief This will build the graph problem and add all measurements and nodes to it
+     * Given the first time, we init the states using the VICON, but in the future we keep them
+     * And only re-linearize measurements (i.e. for the preintegration biases)
+     * @param init_states If true we will append the nodes to the gtsam problem.
+     */
     void build_problem(bool init_states);
 
-    // Function to optimize the graph
+    /**
+     * @brief This will optimize the graph.
+     * Uses Levenberg-Marquardt for the optimization.
+     */
     void optimize_problem();
 
     // Timing variables

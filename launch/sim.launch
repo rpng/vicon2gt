@@ -1,0 +1,44 @@
+<launch>
+
+
+    <!-- dataset name -->
+    <!-- euroc_V1_01_easy, tum_corridor1_512_16_okvis, udel_gore -->
+    <arg name="dataset" value="euroc_V1_01_easy" />
+
+    <!-- set the total number of OpenMP threads -->
+    <env name="OMP_NUM_THREADS" value="4" />
+
+    <!-- MAIN NODE -->
+    <node name="run_simulation" pkg="vicon2gt" type="run_simulation" output="screen" clear_params="true" required="true">
+
+        <!-- simulation -->
+        <param name="sim_seed"          type="int" value="10" />
+        <param name="sim_traj_path"     type="string" value="$(find vicon2gt)/data/$(arg dataset).txt" />
+        <param name="sim_freq_imu"      type="double" value="200" />
+        <param name="sim_freq_cam"      type="double" value="10" />
+        <param name="sim_freq_vicon"    type="double" value="100" />
+
+        <!-- world parameters -->
+        <rosparam param="grav_inV">[0.0,0.0,9.81]</rosparam>
+        <rosparam param="R_BtoI">[1, 0, 0, 0, 1, 0, 0, 0, 1]</rosparam>
+        <rosparam param="p_BinI">[0, 0, 0]</rosparam>
+        <param name="toff_imu_to_vicon"          type="double" value="0.00" />
+        <param name="enforce_grav_mag"           type="bool"   value="true" />
+        <param name="num_loop_relin"             type="int"    value="0" />
+        <param name="estimate_toff_vicon_to_imu" type="bool"   value="true" />
+
+        <!-- vicon sigmas, only used if we don't get odometry -->
+        <!-- sigmas: (rx,ry,rz,px,py,pz) -->
+        <rosparam param="vicon_sigmas">[1e-3,1e-3,1e-3,1e-2,1e-2,1e-2]</rosparam>
+
+        <!-- vi-sensor -->
+        <param name="gyroscope_noise_density"      type="double"   value="1.6968e-04" />
+        <param name="gyroscope_random_walk"        type="double"   value="1.9393e-05" />
+        <param name="accelerometer_noise_density"  type="double"   value="2.0000e-3" />
+        <param name="accelerometer_random_walk"    type="double"   value="3.0000e-3" />
+
+
+    </node>
+
+
+</launch>

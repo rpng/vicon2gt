@@ -30,10 +30,6 @@
 
 
 
-/**
- * Default constructor.
- * Will load all needed configuration variables from the launch file and construct the graph.
- */
 ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagator> propagator,
                                    std::shared_ptr<Interpolator> interpolator, std::vector<double> timestamp_cameras) {
 
@@ -77,7 +73,7 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagat
     cout << "enforce_grav_mag: " << (int)enforce_grav_mag << endl;
 
     // See if we should estimate time offset
-    nh.param<bool>("estimate_toff_vicon_to_imu", estimate_toff_vicon_to_imu, false);
+    nh.param<bool>("estimate_toff_vicon_to_imu", estimate_toff_vicon_to_imu, true);
     cout << "estimate_toff_vicon_to_imu: " << (int)estimate_toff_vicon_to_imu << endl;
 
     // Number of times we relinearize
@@ -89,11 +85,6 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagat
 
 
 
-
-/**
- * This will first build the graph problem and then solve it
- * This function will take a while, but handles the GTSAM optimization
- */
 void ViconGraphSolver::build_and_solve() {
 
     // Ensure we have enough measurements
@@ -175,12 +166,6 @@ void ViconGraphSolver::build_and_solve() {
 
 
 
-
-/**
- * This will export the estimate IMU states and final information to file
- * The CSV file will be in the eth format:
- * (time(ns),px,py,pz,qw,qx,qy,qz,vx,vy,vz,bwx,bwy,bwz,bax,bay,baz)
- */
 void ViconGraphSolver::write_to_file(std::string csvfilepath, std::string infofilepath) {
 
     // Debug info
@@ -238,13 +223,47 @@ void ViconGraphSolver::write_to_file(std::string csvfilepath, std::string infofi
 }
 
 
+void ViconGraphSolver::get_imu_poses(std::vector<double> &times, std::vector<Eigen::Matrix<double,7,1>> &poses) {
+
+    // Clear the old data
+    times.clear();
+    poses.clear();
+
+    // Loop through all states (invalid times will already be removed)
+    for(size_t i=0; i<timestamp_cameras.size(); i++) {
+
+        // get this state at this timestep
+        JPLNavState state = values_result.at<JPLNavState>(X(map_states[timestamp_cameras.at(i)]));
+
+        // append to our vectors
+        Eigen::Matrix<double,7,1> pose;
+        pose << state.q(), state.p();
+        times.push_back(timestamp_cameras.at(i));
+        poses.push_back(pose);
+
+    }
+
+}
 
 
-/**
- * This will build the graph problem and add all measurements and nodes to it
- * Given the first time, we init the states using the VICON, but in the future we keep them
- * And only re-linearize measurements (i.e. for the preintegration biases)
- */
+void ViconGraphSolver::get_calibration(double &toff, Eigen::Matrix3d &R, Eigen::Vector3d &p, Eigen::Vector3d &g) {
+
+    // Get vicon marker body to imu calibration
+    R = values_result.at<Rot3>(C(0)).matrix();
+    p = values_result.at<Vector3>(C(1));
+
+    // Gravity in local frame
+    g = values_result.at<Vector3>(G(0));
+
+    if(estimate_toff_vicon_to_imu) {
+        toff = values_result.at<Vector1>(T(0)).matrix()(0);
+    } else {
+        toff = init_toff_imu_to_vicon;
+    }
+
+}
+
+
 void ViconGraphSolver::build_problem(bool init_states) {
 
     // Start timing
@@ -280,7 +299,7 @@ void ViconGraphSolver::build_problem(bool init_states) {
     // If enforcing gravity magnitude, then add that prior factor here
     if(enforce_grav_mag) {
         Vector1 sigma;
-        sigma(0,0) = 1e-10;
+        sigma(0,0) = 1e-3;
         MagnitudePrior factor_gav(G(0),sigma,init_grav_inV.norm());
         graph->add(factor_gav);
     } else {
@@ -340,10 +359,10 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
         // Add the vicon measurement to this pose
         if(!estimate_toff_vicon_to_imu) {
-            ViconPoseFactor factor_vicon(X(map_states[timestamp]),C(0),C(1),R_vicon,q_VtoB,p_BinV);
+            MeasBased_ViconPoseFactor factor_vicon(X(map_states[timestamp]), C(0), C(1), R_vicon, q_VtoB, p_BinV);
             graph->add(factor_vicon);
         } else {
-            ViconPoseTimeoffsetFactor factor_vicon(X(map_states[timestamp]),C(0),C(1),T(0),timestamp,interpolator);
+            MeasBased_ViconPoseTimeoffsetFactor factor_vicon(X(map_states[timestamp]), C(0), C(1), T(0), timestamp, interpolator);
             graph->add(factor_vicon);
         }
 
@@ -398,10 +417,6 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
 
 
-/**
- * This will optimize the graph.
- * Uses Levenberg-Marquardt for the optimization.
- */
 void ViconGraphSolver::optimize_problem() {
 
     // Debug

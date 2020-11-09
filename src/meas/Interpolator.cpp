@@ -1,8 +1,7 @@
 /**
  * MIT License
- * Copyright (c) 2018 Patrick Geneva @ University of Delaware (Robot Perception & Navigation Group)
- * Copyright (c) 2018 Kevin Eckenhoff @ University of Delaware (Robot Perception & Navigation Group)
- * Copyright (c) 2018 Guoquan Huang @ University of Delaware (Robot Perception & Navigation Group)
+ * Copyright (c) 2020 Patrick Geneva @ University of Delaware (Robot Perception & Navigation Group)
+ * Copyright (c) 2020 Guoquan Huang @ University of Delaware (Robot Perception & Navigation Group)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -149,18 +148,18 @@ bool Interpolator::get_pose(double timestamp, Eigen::Matrix<double,4,1>& q,
 
     // Now perform the interpolation
     Eigen::Matrix<double,3,3> R_0to1 = R_Gto1*R_Gto0.transpose();
-    Eigen::Matrix<double,3,3> R_0toi = Exp(lambda*vee(Log(R_0to1)));
+    Eigen::Matrix<double,3,3> R_0toi = exp_so3(lambda*log_so3(R_0to1));
     Eigen::Matrix<double,3,3> R_interp = R_0toi*R_Gto0;
     Eigen::Matrix<double,3,1> p_interp = (1-lambda)*pose0.p + lambda*pose1.p;
 
     // Calculate intermediate values for cov propagation equations
     // Equation (8)-(10) of Geneva2018ICRA async measurement paper
     Eigen::Matrix<double,3,3> eye33 = Eigen::Matrix<double,3,3>::Identity();
-    Eigen::Matrix<double,3,3> JR_r0i = Jr(lambda*vee(Log(R_0to1)));
-    Eigen::Matrix<double,3,3> JRinv_r01 = Jr(vee(Log(R_0to1))).inverse();
+    Eigen::Matrix<double,3,3> JR_r0i = Jr_so3(lambda*log_so3(R_0to1));
+    Eigen::Matrix<double,3,3> JRinv_r01 = Jr_so3(log_so3(R_0to1)).inverse();
     JRinv_r01 = JRinv_r01.inverse().eval();
-    Eigen::Matrix<double,3,3> JRneg_r0i = Jr(-lambda*vee(Log(R_0to1.transpose())));
-    Eigen::Matrix<double,3,3> JRneginv_r01 = Jr(vee(Log(R_0to1.transpose()))).inverse();
+    Eigen::Matrix<double,3,3> JRneg_r0i = Jr_so3(-lambda*log_so3(R_0to1.transpose()));
+    Eigen::Matrix<double,3,3> JRneginv_r01 = Jr_so3(log_so3(R_0to1.transpose())).inverse();
     JRneginv_r01 = JRneginv_r01.inverse().eval();
 
     // Covariance propagation Jacobian
@@ -253,18 +252,18 @@ bool Interpolator::get_pose_with_jacobian(double timestamp, Eigen::Matrix<double
 
     // Now perform the interpolation
     Eigen::Matrix<double,3,3> R_0to1 = R_Gto1*R_Gto0.transpose();
-    Eigen::Matrix<double,3,3> R_0toi = Exp(lambda*vee(Log(R_0to1)));
+    Eigen::Matrix<double,3,3> R_0toi = exp_so3(lambda*log_so3(R_0to1));
     Eigen::Matrix<double,3,3> R_interp = R_0toi*R_Gto0;
     Eigen::Matrix<double,3,1> p_interp = (1-lambda)*pose0.p + lambda*pose1.p;
 
     // Calculate intermediate values for cov propagation equations
     // Equation (8)-(10) of Geneva2018ICRA async measurement paper
     Eigen::Matrix<double,3,3> eye33 = Eigen::Matrix<double,3,3>::Identity();
-    Eigen::Matrix<double,3,3> JR_r0i = Jr(lambda*vee(Log(R_0to1)));
-    Eigen::Matrix<double,3,3> JRinv_r01 = Jr(vee(Log(R_0to1))).inverse();
+    Eigen::Matrix<double,3,3> JR_r0i = Jr_so3(lambda*log_so3(R_0to1));
+    Eigen::Matrix<double,3,3> JRinv_r01 = Jr_so3(log_so3(R_0to1)).inverse();
     JRinv_r01 = JRinv_r01.inverse().eval();
-    Eigen::Matrix<double,3,3> JRneg_r0i = Jr(-lambda*vee(Log(R_0to1.transpose())));
-    Eigen::Matrix<double,3,3> JRneginv_r01 = Jr(vee(Log(R_0to1.transpose()))).inverse();
+    Eigen::Matrix<double,3,3> JRneg_r0i = Jr_so3(-lambda*log_so3(R_0to1.transpose()));
+    Eigen::Matrix<double,3,3> JRneginv_r01 = Jr_so3(log_so3(R_0to1.transpose())).inverse();
     JRneginv_r01 = JRneginv_r01.inverse().eval();
 
     // Covariance propagation Jacobian
@@ -286,7 +285,7 @@ bool Interpolator::get_pose_with_jacobian(double timestamp, Eigen::Matrix<double
     // Jacobian in respect to our time offset
     double H_lambda2toff = 1.0/(pose1.timestamp-pose0.timestamp);
     H_toff.setZero();
-    H_toff.block(0,0,3,1) = -R_0toi*JR_r0i*vee(Log(R_0to1))*H_lambda2toff;
+    H_toff.block(0,0,3,1) = -R_0toi*JR_r0i*log_so3(R_0to1)*H_lambda2toff;
     H_toff.block(3,0,3,1) = (pose1.p - pose0.p)*H_lambda2toff;
 
     // Done

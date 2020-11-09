@@ -58,7 +58,7 @@ gtsam::Vector ImuFactorCPIv1::evaluateError(const JPLNavState& state_i, const JP
     //================================================================================
 
     // Calculate effect of bias on the orientation
-    Eigen::Matrix<double, 3, 3> ExpB = Exp(-J_q.block(0, 0, 3, 3)*( bg_K - bg_lin ));
+    Eigen::Matrix<double, 3, 3> ExpB = exp_so3(-J_q.block(0, 0, 3, 3)*( bg_K - bg_lin ));
     JPLQuaternion q_b = rot_2_quat(ExpB);
 
     // Quaternions used in Jacobian calculations

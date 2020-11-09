@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 2.8.8)
 project(vicon2gt)
 
 # Include our cmake files
-SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/)
+#SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/)
 
 # Find catkin (the ROS build system)
 find_package(catkin REQUIRED COMPONENTS roscpp rosbag std_msgs geometry_msgs sensor_msgs nav_msgs visualization_msgs)
@@ -66,26 +66,32 @@ list(APPEND thirdparty_libraries
     ${catkin_LIBRARIES}
 )
 
+# All source files we use
+list(APPEND source_files
+    src/gtsam/JPLNavState.cpp
+    src/gtsam/ImuFactorCPIv1.cpp
+    src/gtsam/MeasBased_ViconPoseFactor.cpp
+    src/gtsam/MeasBased_ViconPoseTimeoffsetFactor.cpp
+    src/gtsam/MagnitudePrior.cpp
+    src/meas/Interpolator.cpp
+    src/meas/Propagator.cpp
+    src/sim/BsplineSE3.cpp
+    src/sim/Simulator.cpp
+    src/solver/ViconGraphSolver.cpp
+    ${external_sources}
+)
+
+
 
 
 ##################################################
 # Make binary files!
 ##################################################
-add_executable(estimate_vicon2gt
-        src/estimate_vicon2gt.cpp
-	    src/gtsam/JPLNavState.cpp
-        src/gtsam/ImuFactorCPIv1.cpp
-        src/gtsam/ViconPoseFactor.cpp
-        src/gtsam/ViconPoseTimeoffsetFactor.cpp
-        src/gtsam/MagnitudePrior.cpp
-        src/meas/Interpolator.cpp
-        src/meas/Propagator.cpp
-        src/solver/ViconGraphSolver.cpp
-        ${external_sources}
-)
+add_executable(estimate_vicon2gt src/estimate_vicon2gt.cpp ${source_files})
 target_link_libraries(estimate_vicon2gt ${thirdparty_libraries})
 
-
+add_executable(run_simulation src/run_simulation.cpp ${source_files})
+target_link_libraries(run_simulation ${thirdparty_libraries})
 
 
 

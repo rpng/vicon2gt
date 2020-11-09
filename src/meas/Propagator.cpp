@@ -1,8 +1,7 @@
 /**
  * MIT License
- * Copyright (c) 2018 Patrick Geneva @ University of Delaware (Robot Perception & Navigation Group)
- * Copyright (c) 2018 Kevin Eckenhoff @ University of Delaware (Robot Perception & Navigation Group)
- * Copyright (c) 2018 Guoquan Huang @ University of Delaware (Robot Perception & Navigation Group)
+ * Copyright (c) 2020 Patrick Geneva @ University of Delaware (Robot Perception & Navigation Group)
+ * Copyright (c) 2020 Guoquan Huang @ University of Delaware (Robot Perception & Navigation Group)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
