@@ -3,7 +3,7 @@
 
     <!-- dataset name -->
     <!-- euroc_V1_01_easy, tum_corridor1_512_16_okvis, udel_gore -->
-    <arg name="dataset" value="euroc_V1_01_easy" />
+    <arg name="dataset" value="tum_corridor1_512_16_okvis" />
 
     <!-- set the total number of OpenMP threads -->
     <env name="OMP_NUM_THREADS" value="4" />

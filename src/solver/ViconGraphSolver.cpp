@@ -34,6 +34,7 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagat
                                    std::shared_ptr<Interpolator> interpolator, std::vector<double> timestamp_cameras) {
 
     // save measurement data
+    this->nh = nh;
     this->propagator = propagator;
     this->interpolator = interpolator;
     this->timestamp_cameras = timestamp_cameras;
@@ -80,6 +81,9 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagat
     nh.param<int>("num_loop_relin", num_loop_relin, 0);
     cout << "num_loop_relin: " << num_loop_relin << endl;
 
+    // Setup our publishers
+    pub_pathimu = nh.advertise<nav_msgs::Path>("/vicon2gt/optimized", 2);
+    pub_pathvicon = nh.advertise<nav_msgs::Path>("/vicon2gt/vicon", 2);
 
 }
 
@@ -221,6 +225,95 @@ void ViconGraphSolver::write_to_file(std::string csvfilepath, std::string infofi
     of_info.close();
 
 }
+
+
+void ViconGraphSolver::visualize() {
+
+    // Tell the user we are publishing
+    ROS_INFO("Publishing: %s", pub_pathimu.getTopic().c_str());
+    ROS_INFO("Publishing: %s", pub_pathvicon.getTopic().c_str());
+
+    // Append to our pose vector
+    std::vector<geometry_msgs::PoseStamped> poses_imu;
+    for(size_t i=0; i<timestamp_cameras.size(); i++) {
+
+        // Get the optimized imu state
+        JPLNavState state = values_result.at<JPLNavState>(X(map_states[timestamp_cameras.at(i)]));
+
+        // Create the pose
+        geometry_msgs::PoseStamped posetemp;
+        posetemp.header.stamp = ros::Time(timestamp_cameras.at(i));
+        posetemp.header.frame_id = "global";
+        posetemp.pose.orientation.x = state.q()(0);
+        posetemp.pose.orientation.y = state.q()(1);
+        posetemp.pose.orientation.z = state.q()(2);
+        posetemp.pose.orientation.w = state.q()(3);
+        posetemp.pose.position.x = state.p()(0);
+        posetemp.pose.position.y = state.p()(1);
+        posetemp.pose.position.z = state.p()(2);
+        poses_imu.push_back(posetemp);
+    }
+
+    // Create our path (imu)
+    // NOTE: We downsample the number of poses as needed to prevent rviz crashes
+    // NOTE: https://github.com/ros-visualization/rviz/issues/1107
+    nav_msgs::Path arrIMU;
+    arrIMU.header.stamp = ros::Time::now();
+    arrIMU.header.frame_id = "global";
+    for(size_t i=0; i<poses_imu.size(); i+=std::floor(poses_imu.size()/16384.0)+1) {
+        arrIMU.poses.push_back(poses_imu.at(i));
+    }
+    pub_pathimu.publish(arrIMU);
+
+    // Get vicon marker body to imu calibration
+    Eigen::Matrix3d R_BtoI = values_result.at<Rot3>(C(0)).matrix();
+    Eigen::Vector3d p_BinI = values_result.at<Vector3>(C(1));
+
+    // Append to our pose vector
+    std::vector<geometry_msgs::PoseStamped> poses_vicon;
+    for(size_t i=0; i<timestamp_cameras.size(); i++) {
+
+        // Get the interpolated pose
+        Eigen::Matrix<double,4,1> q_VtoB;
+        Eigen::Matrix<double,3,1> p_BinV;
+        Eigen::Matrix<double,6,6> R_vicon;
+        double timestamp_corrected = (estimate_toff_vicon_to_imu)? timestamp_cameras.at(i)+values.at<Vector1>(T(0))(0) : timestamp_cameras.at(i)+init_toff_imu_to_vicon;
+        bool has_vicon = interpolator->get_pose(timestamp_corrected,q_VtoB,p_BinV,R_vicon);
+        if(!has_vicon)
+            continue;
+
+        // Transform into the IMU frame
+        Eigen::Vector4d q_VtoI = quat_multiply(rot_2_quat(R_BtoI),q_VtoB);
+        Eigen::Vector3d p_IinV = p_BinV - quat_2_Rot(q_VtoI).transpose()*p_BinI;
+
+        // Create the pose
+        geometry_msgs::PoseStamped posetemp;
+        posetemp.header.stamp = ros::Time(timestamp_cameras.at(i));
+        posetemp.header.frame_id = "global";
+        posetemp.pose.orientation.x = q_VtoI(0);
+        posetemp.pose.orientation.y = q_VtoI(1);
+        posetemp.pose.orientation.z = q_VtoI(2);
+        posetemp.pose.orientation.w = q_VtoI(3);
+        posetemp.pose.position.x = p_IinV(0);
+        posetemp.pose.position.y = p_IinV(1);
+        posetemp.pose.position.z = p_IinV(2);
+        poses_vicon.push_back(posetemp);
+
+    }
+
+    // Create our path (vicon)
+    // NOTE: We downsample the number of poses as needed to prevent rviz crashes
+    // NOTE: https://github.com/ros-visualization/rviz/issues/1107
+    nav_msgs::Path arrVICON;
+    arrVICON.header.stamp = ros::Time::now();
+    arrVICON.header.frame_id = "global";
+    for(size_t i=0; i<poses_vicon.size(); i+=std::floor(poses_imu.size()/16384.0)+1) {
+        arrVICON.poses.push_back(poses_vicon.at(i));
+    }
+    pub_pathvicon.publish(arrVICON);
+
+}
+
 
 
 void ViconGraphSolver::get_imu_poses(std::vector<double> &times, std::vector<Eigen::Matrix<double,7,1>> &poses) {

@@ -241,12 +241,13 @@ int main(int argc, char** argv)
     ViconGraphSolver solver(nh,propagator,interpolator,timestamp_cameras);
     solver.build_and_solve();
 
+    // Visualize onto ROS
+    solver.visualize();
 
     // Finally, save to file all the information
     if(save2file) {
         solver.write_to_file(path_states,path_info);
     }
-
 
     // Done!
     return EXIT_SUCCESS;

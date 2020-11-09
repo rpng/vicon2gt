@@ -32,6 +32,8 @@
 #include <fstream>
 #include <Eigen/Eigen>
 #include <ros/ros.h>
+#include <nav_msgs/Path.h>
+#include <geometry_msgs/PoseStamped.h>
 
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/inference/Symbol.h>
@@ -102,6 +104,11 @@ public:
     void write_to_file(std::string csvfilepath, std::string infofilepath);
 
     /**
+     * @brief Will publish the trajectories onto ROS for visualization in RVIZ
+     */
+    void visualize();
+
+    /**
      * @brief Returns the current optimized poses which we estimated
      * @param times Timestamps in seconds each pose will occur at
      * @param poses Poses in quaternion position ordering
@@ -136,6 +143,10 @@ protected:
 
     // Timing variables
     boost::posix_time::ptime rT1, rT2, rT3, rT4, rT5, rT6, rT7;
+
+    // ROS node handler
+    ros::NodeHandle nh;
+    ros::Publisher pub_pathimu, pub_pathvicon;
 
     // Measurement data from the rosbag
     std::shared_ptr<Propagator> propagator;

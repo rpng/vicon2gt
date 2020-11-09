@@ -154,6 +154,9 @@ int main(int argc, char** argv)
     ViconGraphSolver solver(nh,propagator,interpolator,timestamp_cameras);
     solver.build_and_solve();
 
+    // Visualize onto ROS
+    solver.visualize();
+
     //===================================================================================
     //===================================================================================
     //===================================================================================

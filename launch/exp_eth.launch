@@ -3,7 +3,7 @@
 
     <!-- dataset name -->
     <!-- V1_01_easy, V1_02_medium, V1_03_difficult, V2_01_easy, V2_02_medium, V2_03_difficult -->
-    <arg name="dataset" value="V1_02_medium" />
+    <arg name="dataset" value="V1_03_difficult" />
     <arg name="folder"  value="/home/patrick/datasets/eth" />
 
 
@@ -37,11 +37,9 @@
         <param name="num_loop_relin"             type="int"    value="0" />
         <param name="estimate_toff_vicon_to_imu" type="bool"   value="true" />
 
-
-
         <!-- vicon sigmas, only used if we don't get odometry -->
         <!-- sigmas: (rx,ry,rz,px,py,pz) -->
-        <rosparam param="vicon_sigmas">[1e-4,1e-4,1e-4,1e-5,1e-5,1e-5]</rosparam>
+        <rosparam param="vicon_sigmas">[1e-3,1e-3,1e-3,1e-2,1e-2,1e-2]</rosparam>
 
         <!-- vi-sensor -->
         <param name="gyroscope_noise_density"      type="double"   value="1.6968e-04" />
