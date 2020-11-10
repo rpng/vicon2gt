@@ -3,7 +3,7 @@
 
     <!-- dataset name -->
     <!-- V1_01_easy, V1_02_medium, V1_03_difficult, V2_01_easy, V2_02_medium, V2_03_difficult -->
-    <arg name="dataset" value="V1_03_difficult" />
+    <arg name="dataset" value="V2_03_difficult" />
     <arg name="folder"  value="/home/patrick/datasets/eth" />
 
 
@@ -14,8 +14,8 @@
         <!-- bag topics -->
         <param name="topic_imu"      type="string" value="/imu0" />
         <param name="topic_cam"      type="string" value="/cam0/image_raw" />
-        <param name="topic_vicon"    type="string" value="/vicon/firefly_sbx/firefly_sbx" /> <!-- vicon room 1 -->
-<!--        <param name="topic_vicon"    type="string" value="vicon/firefly_sbx/firefly_sbx" /> &lt;!&ndash; vicon room 2 &ndash;&gt;-->
+<!--        <param name="topic_vicon"    type="string" value="/vicon/firefly_sbx/firefly_sbx" /> &lt;!&ndash; vicon room 1 &ndash;&gt;-->
+        <param name="topic_vicon"    type="string" value="vicon/firefly_sbx/firefly_sbx" /> <!-- vicon room 2 -->
 
         <!-- bag parameters -->
         <param name="path_bag"    type="string" value="$(arg folder)/$(arg dataset).bag" />

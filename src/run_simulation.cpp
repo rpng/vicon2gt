@@ -89,8 +89,8 @@ int main(int argc, char** argv)
     R_p(0,0) = std::pow(viconsigmas.at(3),2);
     R_p(1,1) = std::pow(viconsigmas.at(4),2);
     R_p(2,2) = std::pow(viconsigmas.at(5),2);
-    params.sigma_vicon_pose << viconsigmas_default.at(0), viconsigmas_default.at(1), viconsigmas_default.at(2),
-                    viconsigmas_default.at(3), viconsigmas_default.at(4), viconsigmas_default.at(5);
+    params.sigma_vicon_pose << viconsigmas.at(0), viconsigmas.at(1), viconsigmas.at(2),
+            viconsigmas.at(3), viconsigmas.at(4), viconsigmas.at(5);
 
     // Load gravity in vicon frame
     std::vector<double> vec_gravity;

@@ -265,8 +265,8 @@ bool Simulator::get_next_vicon(double &time_vicon, Eigen::Vector4d &q_VtoB, Eige
     std::normal_distribution<double> w(0,1);
     Eigen::Vector3d w_vec = Eigen::Vector3d::Zero();
     Eigen::Vector3d p_vec = Eigen::Vector3d::Zero();
-//    w_vec << params.sigma_vicon_pose(0)*w(gen_meas_vicon), params.sigma_vicon_pose(1)*w(gen_meas_vicon), params.sigma_vicon_pose(2)*w(gen_meas_vicon);
-//    p_vec << params.sigma_vicon_pose(3)*w(gen_meas_vicon), params.sigma_vicon_pose(4)*w(gen_meas_vicon), params.sigma_vicon_pose(5)*w(gen_meas_vicon);
+    w_vec << params.sigma_vicon_pose(0)*w(gen_meas_vicon), params.sigma_vicon_pose(1)*w(gen_meas_vicon), params.sigma_vicon_pose(2)*w(gen_meas_vicon);
+    p_vec << params.sigma_vicon_pose(3)*w(gen_meas_vicon), params.sigma_vicon_pose(4)*w(gen_meas_vicon), params.sigma_vicon_pose(5)*w(gen_meas_vicon);
     Eigen::Matrix3d R_VtoB_meas = exp_so3(w_vec)*R_GtoB;
     Eigen::Vector3d p_GinB_meas = p_BinG + p_vec;
 

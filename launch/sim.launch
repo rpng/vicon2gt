@@ -2,8 +2,8 @@
 
 
     <!-- dataset name -->
-    <!-- euroc_V1_01_easy, tum_corridor1_512_16_okvis, udel_gore -->
-    <arg name="dataset" value="tum_corridor1_512_16_okvis" />
+    <!-- euroc_V1_01_easy, tum_corridor1_512_16_okvis, udel_gore, udel_arl -->
+    <arg name="dataset" value="euroc_V1_01_easy" />
 
     <!-- set the total number of OpenMP threads -->
     <env name="OMP_NUM_THREADS" value="4" />
@@ -29,7 +29,7 @@
 
         <!-- vicon sigmas, only used if we don't get odometry -->
         <!-- sigmas: (rx,ry,rz,px,py,pz) -->
-        <rosparam param="vicon_sigmas">[1e-3,1e-3,1e-3,1e-2,1e-2,1e-2]</rosparam>
+        <rosparam param="vicon_sigmas">[0.001,0.001,0.001,0.05,0.05,0.05]</rosparam>
 
         <!-- vi-sensor -->
         <param name="gyroscope_noise_density"      type="double"   value="1.6968e-04" />
