@@ -45,9 +45,10 @@
 #include <gtsam/slam/PriorFactor.h>
 
 #include "cpi/CpiV1.h"
-#include "gtsam/MeasBased_ViconPoseFactor.h"
-#include "gtsam/MeasBased_ViconPoseTimeoffsetFactor.h"
+#include "gtsam/GtsamConfig.h"
 #include "gtsam/JPLNavState.h"
+#include "gtsam/JPLQuaternion.h"
+#include "gtsam/MeasBased_ViconPoseTimeoffsetFactor.h"
 #include "gtsam/ImuFactorCPIv1.h"
 #include "gtsam/MagnitudePrior.h"
 #include "meas/Propagator.h"
@@ -167,14 +168,14 @@ protected:
     // Optimized values
     gtsam::Values values_result;
 
+    // Config for what we are optimizing
+    std::shared_ptr<GtsamConfig> config;
+
     // Map between state timestamp and their IDs
     std::map<double,size_t> map_states;
 
     // If we should enforce gravity magnitude
     bool enforce_grav_mag;
-
-    // If we should estimate time offset between the imu and vicon
-    bool estimate_toff_vicon_to_imu;
 
     // Number of times we will loop and relinearize the measurements
     int num_loop_relin;

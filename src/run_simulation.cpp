@@ -56,6 +56,9 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "run_simulation");
     ros::NodeHandle nh("~");
 
+    // Setup publisher (needs to be at top so ROS registers it)
+    ros::Publisher pub_pathgt = nh.advertise<nav_msgs::Path>("/vicon2gt/groundtruth", 2);
+
     //===================================================================================
     //===================================================================================
     //===================================================================================
@@ -167,6 +170,7 @@ int main(int argc, char** argv)
     solver.get_imu_poses(times, poses);
 
     // Now compute the error compared to our true states
+    std::vector<geometry_msgs::PoseStamped> poses_gtimu;
     Stats err_ori, err_pos;
     for(size_t i=0; i<times.size(); i++) {
 
@@ -193,7 +197,42 @@ int main(int argc, char** argv)
         err_pos.timestamps.push_back(times.at(i));
         err_pos.values.push_back(pose);
 
+        // Create the ROS pose for visualization
+        geometry_msgs::PoseStamped posetemp;
+        posetemp.header.stamp = ros::Time(times.at(i));
+        posetemp.header.frame_id = "global";
+        posetemp.pose.orientation.x = gt_state(1);
+        posetemp.pose.orientation.y = gt_state(2);
+        posetemp.pose.orientation.z = gt_state(3);
+        posetemp.pose.orientation.w = gt_state(4);
+        posetemp.pose.position.x = gt_state(5);
+        posetemp.pose.position.y = gt_state(6);
+        posetemp.pose.position.z = gt_state(7);
+        poses_gtimu.push_back(posetemp);
+
     }
+
+    //===================================================================================
+    //===================================================================================
+    //===================================================================================
+
+    // Tell the user we are publishing
+    ROS_INFO("Publishing: %s", pub_pathgt.getTopic().c_str());
+
+    // Create our path (vicon)
+    // NOTE: We downsample the number of poses as needed to prevent rviz crashes
+    // NOTE: https://github.com/ros-visualization/rviz/issues/1107
+    nav_msgs::Path arrVICON;
+    arrVICON.header.stamp = ros::Time::now();
+    arrVICON.header.frame_id = "global";
+    for(size_t i=0; i<poses_gtimu.size(); i+=std::floor(poses_gtimu.size()/16384.0)+1) {
+        arrVICON.poses.push_back(poses_gtimu.at(i));
+    }
+    pub_pathgt.publish(arrVICON);
+
+    //===================================================================================
+    //===================================================================================
+    //===================================================================================
 
     // Calculate and print trajectory error
     err_ori.calculate();
@@ -206,11 +245,6 @@ int main(int argc, char** argv)
     printf(REDPURPLE "min_ori  = %.5f | min_pos  = %.5f\n",err_ori.min,err_pos.min);
     printf(REDPURPLE "max_ori  = %.5f | max_pos  = %.5f\n",err_ori.max,err_pos.max);
     printf(REDPURPLE "std_ori  = %.5f | std_pos  = %.5f\n\n",err_ori.std,err_pos.std);
-
-
-    //===================================================================================
-    //===================================================================================
-    //===================================================================================
 
     // Get converged calibration
     double toff;
@@ -233,7 +267,7 @@ int main(int argc, char** argv)
     printf(REDPURPLE "EST p_BinI: %.3f, %.3f, %.3f\n\n", p_BinI(0), p_BinI(1), p_BinI(2));
 
 
-
     // Done!
     return EXIT_SUCCESS;
+
 }

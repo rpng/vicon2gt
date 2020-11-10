@@ -30,7 +30,9 @@
 #include <gtsam/nonlinear/NonlinearFactor.h>
 #include <gtsam/base/numericalDerivative.h>
 
+#include "GtsamConfig.h"
 #include "JPLNavState.h"
+#include "JPLQuaternion.h"
 #include "meas/Interpolator.h"
 #include "utils/quat_ops.h"
 
@@ -38,43 +40,40 @@ using namespace gtsam;
 
 namespace gtsam {
 
-
-    /// JPL quaternion for the orientation
-    typedef Eigen::Matrix<double,4,1> JPLQuaternion;
-
     /**
-     * Vicon pose factor.
+     * @brief Vicon pose factor with time offset.
      * This is a measurement of the vicon "body" frame on the object in the vicon frame
      * Our states we are estimating are the JPL imu state, so we need the transform to it also
      */
-    class MeasBased_ViconPoseTimeoffsetFactor : public NoiseModelFactor4<JPLNavState, Rot3, Vector3, Vector1> {
+    class MeasBased_ViconPoseTimeoffsetFactor : public NoiseModelFactor4<JPLNavState, JPLQuaternion, Vector3, Vector1> {
     private:
 
         double m_time; ///< time in the vicon clock that those pose should be at
-
         std::shared_ptr<Interpolator> m_interpolator; ///< interpolator that has vicon poses in it
-
+        std::shared_ptr<GtsamConfig> m_config; ///< config file for if we should estimate calibration
 
     public:
 
         /// Construct from the two linking JPLNavStates, preingration measurement, and its covariance
-        MeasBased_ViconPoseTimeoffsetFactor(Key kstate, Key kR_BtoI, Key kp_BinI, Key kt_off, double timestamp, std::shared_ptr<Interpolator> interpolator) :
-                NoiseModelFactor4<JPLNavState, Rot3, Vector3, Vector1>(noiseModel::Robust::Create(
+        MeasBased_ViconPoseTimeoffsetFactor(Key kstate, Key kR_BtoI, Key kp_BinI, Key kt_off, double timestamp,
+                                            std::shared_ptr<Interpolator> interpolator, std::shared_ptr<GtsamConfig> config) :
+                NoiseModelFactor4<JPLNavState, JPLQuaternion, Vector3, Vector1>(noiseModel::Robust::Create(
                         noiseModel::mEstimator::Huber::Create(1.345),
                          noiseModel::Gaussian::Covariance(Eigen::Matrix<double,6,6>::Identity())
                         ), kstate, kR_BtoI, kp_BinI, kt_off) {
             this->m_time = timestamp;
             this->m_interpolator = interpolator;
+            this->m_config = config;
         }
 
-        /// Timestamp we will interpolate to
+        /// Timestamp we will interpolate to (in vicon clock frame)
         double time() const {
             return m_time;
         }
 
 
         /// Error function. Given the current states, calculate the measurement error/residual
-        gtsam::Vector evaluateError(const JPLNavState& state, const Rot3& R_BtoI, const Vector3& p_BinI, const Vector1& t_off,
+        gtsam::Vector evaluateError(const JPLNavState& state, const JPLQuaternion& R_BtoI, const Vector3& p_BinI, const Vector1& t_off,
                                     boost::optional<Matrix&> H1 = boost::none, boost::optional<Matrix&> H2 = boost::none,
                                     boost::optional<Matrix&> H3 = boost::none, boost::optional<Matrix&> H4 = boost::none) const;
 
@@ -97,9 +96,9 @@ namespace gtsam {
         bool equals(const NonlinearFactor &expected, double tol = 1e-9) const {
             // Cast the object
             const MeasBased_ViconPoseTimeoffsetFactor *e =  dynamic_cast<const MeasBased_ViconPoseTimeoffsetFactor*>(&expected);
-            if(e == NULL) return false;
+            if(e == nullptr) return false;
             // Success, compare base noise values and the measurement values
-            return NoiseModelFactor4<JPLNavState,Rot3,Vector3,Vector1>::equals(*e, tol)
+            return NoiseModelFactor4<JPLNavState,JPLQuaternion,Vector3,Vector1>::equals(*e, tol)
                    && gtsam::equal(m_time, e->m_time, tol);
         }
 

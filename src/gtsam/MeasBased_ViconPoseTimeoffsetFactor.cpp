@@ -30,10 +30,7 @@ using namespace std;
 using namespace gtsam;
 
 
-/**
- * Called on when optimizing to get the error of this measurement
- */
-gtsam::Vector MeasBased_ViconPoseTimeoffsetFactor::evaluateError(const JPLNavState& state, const Rot3& R_BtoI, const Vector3& p_BinI, const Vector1& t_off,
+gtsam::Vector MeasBased_ViconPoseTimeoffsetFactor::evaluateError(const JPLNavState& state, const JPLQuaternion& q_BtoI, const Vector3& p_BinI, const Vector1& t_off,
                                                                  boost::optional<Matrix&> H1, boost::optional<Matrix&> H2, boost::optional<Matrix&> H3, boost::optional<Matrix&> H4) const {
 
 
@@ -42,12 +39,12 @@ gtsam::Vector MeasBased_ViconPoseTimeoffsetFactor::evaluateError(const JPLNavSta
     //================================================================================
 
     // Separate our variables from our states
-    JPLQuaternion q_VtoI = state.q();
+    Vector4 q_VtoI = state.q();
     Vector3 p_IinV = state.p();
-    JPLQuaternion q_BtoI = rot_2_quat(R_BtoI.matrix());
+    Vector4 q_BtoI_vec = q_BtoI.q();
 
     // Calculate the expected measurement values from the state
-    JPLQuaternion q_VtoB = quat_multiply(Inv(q_BtoI),q_VtoI);
+    Vector4 q_VtoB = quat_multiply(Inv(q_BtoI_vec),q_VtoI);
     Eigen::Matrix<double,3,1> p_BinV = p_IinV + quat_2_Rot(q_VtoI).transpose()*p_BinI;
 
     //================================================================================
@@ -68,7 +65,7 @@ gtsam::Vector MeasBased_ViconPoseTimeoffsetFactor::evaluateError(const JPLNavSta
 
     // Our error vector [delta = (orientation, position)]
     Vector6 error;
-    JPLQuaternion q_r = quat_multiply(q_VtoB, Inv(q_interp));
+    Vector4 q_r = quat_multiply(q_VtoB, Inv(q_interp));
 
     // Error in our our state in respect to the measurement
     error.block(0,0,3,1) = 2*q_r.block(0,0,3,1);
@@ -81,34 +78,34 @@ gtsam::Vector MeasBased_ViconPoseTimeoffsetFactor::evaluateError(const JPLNavSta
 
     // Compute the Jacobian in respect to the first JPLNavState if needed
     if(H1) {
-        //*H1 = numericalDerivative41<Vector,JPLNavState,Rot3,Vector3,Vector1>(
-        //        boost::bind(&ViconPoseTimeoffsetFactor::evaluateError, this,
-        //                    _1, _2, _3, _4,
-        //                    boost::none, boost::none, boost::none, boost::none),
-        //        state, R_BtoI, p_BinI, t_off);
         Eigen::Matrix<double,6,15> H = Eigen::Matrix<double,6,15>::Zero();
         if(has_vicon) {
-            H.block(0,0,3,3) = quat_2_Rot(Inv(q_BtoI));
+            H.block(0,0,3,3) = quat_2_Rot(Inv(q_BtoI_vec));
             H.block(3,0,3,3) = -quat_2_Rot(Inv(q_VtoI))*skew_x(p_BinI);
             H.block(3,12,3,3) = Eigen::Matrix<double,3,3>::Identity();
             H = sqrt_inv_interp*H;
         }
         *H1 = *OptionalJacobian<6,15>(H);
+        //*H1 = numericalDerivative41<Vector,JPLNavState,JPLQuaternion,Vector3,Vector1>(
+        //        boost::bind(&ViconPoseTimeoffsetFactor::evaluateError, this,
+        //                    _1, _2, _3, _4,
+        //                    boost::none, boost::none, boost::none, boost::none),
+        //        state, R_BtoI, p_BinI, t_off);
     }
 
     // Compute the Jacobian in respect orientation extrinics between BODY and IMU frames
-    // NOTE:!@#!@#!@##@!@#!#!@#!@#!@#!@#!#!@#!@#!@#!@#!@#!@#!@#!$%$!@%$@!#$!@#!@#
     // NOTE: gtsam uses the right exponential expansion of the rotation error
     // NOTE: (I-skew(theta1))*R_VtoB = (R_BtoI*(I+skew(theta2)))^T*R_VtoI
+    // NOTE: thus if we used the Rot3 we would have this Jacobian instead:
+    // NOTE: H.block(0, 0, 3, 3).setIdentity();
     if(H2) {
         Eigen::Matrix<double,6,3> H = Eigen::Matrix<double,6,3>::Zero();
-        if(has_vicon) {
-            //H.block(0,0,3,3) = -quat_2_Rot(Inv(q_BtoI)); // our form
-            H.block(0, 0, 3, 3).setIdentity(); // since we use gtsam rot3
+        if(has_vicon && m_config->estimate_vicon_imu_ori) {
+            H.block(0,0,3,3) = -quat_2_Rot(Inv(q_BtoI_vec));
             H = sqrt_inv_interp*H;
         }
         *H2 = *OptionalJacobian<6,3>(H);
-        //*H2 = numericalDerivative42<Vector,JPLNavState,Rot3,Vector3,Vector1>(
+        //*H2 = numericalDerivative42<Vector,JPLNavState,JPLQuaternion,Vector3,Vector1>(
         //        boost::bind(&ViconPoseTimeoffsetFactor::evaluateError, this,
         //                    _1, _2, _3, _4,
         //                    boost::none, boost::none, boost::none, boost::none),
@@ -118,12 +115,12 @@ gtsam::Vector MeasBased_ViconPoseTimeoffsetFactor::evaluateError(const JPLNavSta
     // Compute the Jacobian in respect position extrinics between BODY and IMU frames
     if(H3) {
         Eigen::Matrix<double,6,3> H = Eigen::Matrix<double,6,3>::Zero();
-        if(has_vicon) {
+        if(has_vicon && m_config->estimate_vicon_imu_pos) {
             H.block(3, 0, 3, 3) = quat_2_Rot(Inv(q_VtoI));
             H = sqrt_inv_interp*H;
         }
         *H3 = *OptionalJacobian<6,3>(H);
-        //*H3 = numericalDerivative43<Vector,JPLNavState,Rot3,Vector3,Vector1>(
+        //*H3 = numericalDerivative43<Vector,JPLNavState,JPLQuaternion,Vector3,Vector1>(
         //        boost::bind(&ViconPoseTimeoffsetFactor::evaluateError, this,
         //                    _1, _2, _3, _4,
         //                    boost::none, boost::none, boost::none, boost::none),
@@ -136,32 +133,21 @@ gtsam::Vector MeasBased_ViconPoseTimeoffsetFactor::evaluateError(const JPLNavSta
     // NOTE: thus we here bring it over to the "other side" of the measurement equation and thus make it negative
     if(H4) {
         Eigen::Matrix<double,6,1> H = Eigen::Matrix<double,6,1>::Zero();
-        if(has_vicon) {
-            //H.block(0,0,3,1) = Jr(lambda*vee(Log(R_0to1))).transpose()*vee(Log(R_0to1))/(m_timeB1-m_timeB0);
-            //H.block(3,0,3,1) = (mp_B0inV-mp_B1inV)/(m_timeB1-m_timeB0);
-            //cout << endl << "ViconPoseTimeoffsetFactor H4 (numerical)" << endl << (H4->transpose()) << endl;
-            //cout << endl << "ViconPoseTimeoffsetFactor H4 (analytical)" << endl << H_toff.transpose() << endl << endl;
+        if(has_vicon && m_config->estimate_vicon_imu_toff) {
             H = -H_toff;
             H = sqrt_inv_interp*H;
         }
         *H4 = *OptionalJacobian<6,1>(H);
-        //*H4 = numericalDerivative44<Vector,JPLNavState,Rot3,Vector3,Vector1>(
+        //*H4 = numericalDerivative44<Vector,JPLNavState,JPLQuaternion,Vector3,Vector1>(
         //        boost::bind(&ViconPoseTimeoffsetFactor::evaluateError, this,
         //                    _1, _2, _3, _4,
         //                    boost::none, boost::none, boost::none, boost::none),
         //        state, R_BtoI, p_BinI, t_off, 1e-5);
     }
 
-    // Debug printing of error and Jacobians
-    //if(H1) cout << endl << "ViconPoseTimeoffsetFactor H1" << endl << *H1 << endl << endl;
-    //if(H2) cout << endl << "ViconPoseTimeoffsetFactor H2" << endl << *H2 << endl << endl;
-    //if(H3) cout << endl << "ViconPoseTimeoffsetFactor H3" << endl << *H3 << endl << endl;
-    //if(H4) cout << endl << "ViconPoseTimeoffsetFactor H4" << endl << *H4 << endl << endl;
-    //KeyFormatter keyFormatter = DefaultKeyFormatter;
-    //cout << endl << "ViconPoseFactor (" << keyFormatter(this->key1()) << "," << keyFormatter(this->key2()) << "," << keyFormatter(this->key3()) << ")" << endl << error.transpose() << endl;
-
     // Finally return our error vector!
     return error;
+
 }
 
 

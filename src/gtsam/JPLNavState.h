@@ -39,9 +39,6 @@
 
 namespace gtsam {
 
-    /// Bias for a sensor is currently typedef'd to Vector3
-    typedef Eigen::Matrix<double,4,1> JPLQuaternion;
-
     /// Velocity is currently typedef'd to Vector3
     typedef Eigen::Vector3d Velocity3;
 
@@ -59,7 +56,7 @@ namespace gtsam {
     class JPLNavState {
     private:
 
-        JPLQuaternion q_GtoI; ///< Rotation from global to IMU
+        Vector4 q_GtoI; ///< Rotation from global to IMU
         Bias3 biasg; ///< Bias of the gyroscope
         Velocity3 v_IinG; ///< Velocity of IMU in global
         Bias3 biasa; ///< Bias of the accelerometer
@@ -84,11 +81,11 @@ namespace gtsam {
         }
 
         /// Construct from orientation, position, velocity, and biases
-        JPLNavState(const JPLQuaternion& q, const Bias3& bgi, const Velocity3& v, const Bias3& bai, const Vector3& p) :
+        JPLNavState(const Vector4& q, const Bias3& bgi, const Velocity3& v, const Bias3& bai, const Vector3& p) :
                 q_GtoI(q), biasg(bgi), v_IinG(v), biasa(bai), p_IinG(p) { }
 
         /// Return rotation quaternion.
-        JPLQuaternion q() const {
+        Vector4 q() const {
             return q_GtoI;
         }
 
@@ -115,9 +112,8 @@ namespace gtsam {
         /// Retract with optional derivatives (given correction, change this navstate)
         JPLNavState retract(const Vector15& xi) const;
 
-        /// Converting function from our overparameterization to the local representation
+        /// Converting function from our overparameterization to the local representation (expanding about the current node's tangent space)
         Vector15 localCoordinates(const JPLNavState& state) const;
-
 
         /// How this node gets printed in the ostream
         GTSAM_EXPORT

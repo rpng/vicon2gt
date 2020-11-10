@@ -24,14 +24,14 @@
  */
 
 
-#include "JPLNavState.h"
+#include "JPLQuaternion.h"
 
 
 using namespace std;
 using namespace gtsam;
 
 
-JPLNavState gtsam::JPLNavState::retract(const Vector15 &xi) const {
+JPLQuaternion gtsam::JPLQuaternion::retract(const Vector3 &xi) const {
 
     // Calculate the update quaternion from the minimal representation
     Eigen::Matrix<double, 3, 1> dth = xi.block(0, 0, 3, 1);
@@ -39,7 +39,7 @@ JPLNavState gtsam::JPLNavState::retract(const Vector15 &xi) const {
     double dq4 = std::cos(dth.norm() / 2);
 
     // From the minimal representation, create the full 4x1 correction quaternion
-    Vector4 dq;
+    Eigen::Matrix<double,4,1> dq;
     dq << dq13, dq4;
     dq = dq / dq.norm();
     if (dq(3) < 0) {
@@ -52,25 +52,16 @@ JPLNavState gtsam::JPLNavState::retract(const Vector15 &xi) const {
     }
 
     // Update our current state values
-    Vector4 q = quat_multiply(dq,q_GtoI);
-    Bias3 bg = biasg + xi.block(3, 0, 3, 1);
-    Velocity3 v = v_IinG + xi.block(6, 0, 3, 1);
-    Bias3 ba = biasa + xi.block(9, 0, 3, 1);
-    Vector3 p = p_IinG + xi.block(12, 0, 3, 1);
+    Eigen::Matrix<double,4,1> q = quat_multiply(dq,q_GtoI);
 
     // Reconstruct and return this new state
-    return JPLNavState(q, bg, v, ba, p);
+    return JPLQuaternion(q);
+
 }
 
 
-Vector15 gtsam::JPLNavState::localCoordinates(const JPLNavState &state) const {
-    Vector15 localrep;
-    localrep.block(0,0,3,1) = 2*quat_multiply(state.q(),Inv(q_GtoI)).block(0,0,3,1);
-    localrep.block(3,0,3,1) = state.bg()-biasg;
-    localrep.block(6,0,3,1) = state.v()-v_IinG;
-    localrep.block(9,0,3,1) = state.ba()-biasa;
-    localrep.block(12,0,3,1) = state.p()-p_IinG;
-    return localrep;
+Vector3 gtsam::JPLQuaternion::localCoordinates(const JPLQuaternion &state) const {
+    return 2*quat_multiply(state.q(),Inv(q_GtoI)).block(0,0,3,1);
 }
 
 

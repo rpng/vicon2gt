@@ -38,8 +38,8 @@ gtsam::Vector ImuFactorCPIv1::evaluateError(const JPLNavState& state_i, const JP
                                             boost::optional<Matrix&> H1, boost::optional<Matrix&> H2, boost::optional<Matrix&> H3) const {
 
     // Separate our variables from our states
-    JPLQuaternion q_GtoK = state_i.q();
-    JPLQuaternion q_GtoK1 = state_j.q();
+    Vector4 q_GtoK = state_i.q();
+    Vector4 q_GtoK1 = state_j.q();
     Bias3 bg_K = state_i.bg();
     Bias3 bg_K1 = state_j.bg();
     Velocity3 v_KinG = state_i.v();
@@ -59,16 +59,16 @@ gtsam::Vector ImuFactorCPIv1::evaluateError(const JPLNavState& state_i, const JP
 
     // Calculate effect of bias on the orientation
     Eigen::Matrix<double, 3, 3> ExpB = exp_so3(-J_q.block(0, 0, 3, 3)*( bg_K - bg_lin ));
-    JPLQuaternion q_b = rot_2_quat(ExpB);
+    Vector4 q_b = rot_2_quat(ExpB);
 
     // Quaternions used in Jacobian calculations
-    JPLQuaternion q_n = quat_multiply(q_GtoK1, Inv(q_GtoK));
-    JPLQuaternion q_rminus = quat_multiply(q_n, Inv(q_KtoK1));
-    JPLQuaternion q_r = quat_multiply(q_rminus, q_b);
-    JPLQuaternion q_m = quat_multiply(Inv(q_b), q_KtoK1);
+    Vector4 q_n = quat_multiply(q_GtoK1, Inv(q_GtoK));
+    Vector4 q_rminus = quat_multiply(q_n, Inv(q_KtoK1));
+    Vector4 q_r = quat_multiply(q_rminus, q_b);
+    Vector4 q_m = quat_multiply(Inv(q_b), q_KtoK1);
 
     // Calculate the corrected quaternion (q_GtoK*q_GtoK1^-1*q_meas^-1*q_b)
-    //JPLQuaternion q_r = quat_multiply(quat_multiply(q_GtoK1,Inv(q_GtoK)),quat_multiply(Inv(q_KtoK1),q_b));
+    //Vector4 q_r = quat_multiply(quat_multiply(q_GtoK1,Inv(q_GtoK)),quat_multiply(Inv(q_KtoK1),q_b));
 
     // Calculate the expected measurement values from the state
     Vector3 alphahat = quat_2_Rot(q_GtoK)*(p_K1inG - p_KinG - v_KinG*deltatime + 0.5*grav_inG*std::pow(deltatime,2));

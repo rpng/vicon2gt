@@ -9,7 +9,7 @@
 
     <!-- MASTER NODE! -->
     <node name="estimate_vicon2gt" pkg="vicon2gt" type="estimate_vicon2gt" output="screen" clear_params="true" required="true">
-<!--    <node name="estimate_vicon2gt" pkg="vicon2gt" type="estimate_vicon2gt" output="screen" clear_params="true" required="true" launch-prefix="gdb -ex run &#45;&#45;args">-->
+        <!--    <node name="estimate_vicon2gt" pkg="vicon2gt" type="estimate_vicon2gt" output="screen" clear_params="true" required="true" launch-prefix="gdb -ex run &#45;&#45;args">-->
 
         <!-- bag topics -->
         <param name="topic_imu"      type="string" value="/imu0" />
@@ -35,6 +35,8 @@
         <param name="enforce_grav_mag"           type="bool"   value="true" />
         <param name="num_loop_relin"             type="int"    value="0" />
         <param name="estimate_toff_vicon_to_imu" type="bool"   value="true" />
+        <param name="estimate_ori_vicon_to_imu"  type="bool"   value="true" />
+        <param name="estimate_pos_vicon_to_imu"  type="bool"   value="true" />
 
 
         <!-- vicon sigmas, only used if we don't get odometry -->

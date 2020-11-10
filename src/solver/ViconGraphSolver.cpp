@@ -41,6 +41,7 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagat
 
     // Initalize our graphs
     this->graph = new gtsam::NonlinearFactorGraph();
+    this->config = std::make_shared<GtsamConfig>();
 
     // Load gravity in vicon frame
     std::vector<double> vec_gravity;
@@ -68,18 +69,31 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagat
     cout << "init_p_BinI:" << endl << init_p_BinI << endl;
     cout << "init_toff_imu_to_vicon:" << endl << init_toff_imu_to_vicon << endl;
 
+    // ================================================================================================
+    // ================================================================================================
+    // ================================================================================================
 
     // See if we should enforce gravity
     nh.param<bool>("enforce_grav_mag", enforce_grav_mag, false);
-    cout << "enforce_grav_mag: " << (int)enforce_grav_mag << endl;
 
     // See if we should estimate time offset
-    nh.param<bool>("estimate_toff_vicon_to_imu", estimate_toff_vicon_to_imu, true);
-    cout << "estimate_toff_vicon_to_imu: " << (int)estimate_toff_vicon_to_imu << endl;
+    nh.param<bool>("estimate_toff_vicon_to_imu", config->estimate_vicon_imu_toff, config->estimate_vicon_imu_toff);
+    nh.param<bool>("estimate_ori_vicon_to_imu", config->estimate_vicon_imu_ori, config->estimate_vicon_imu_ori);
+    nh.param<bool>("estimate_pos_vicon_to_imu", config->estimate_vicon_imu_pos, config->estimate_vicon_imu_pos);
 
     // Number of times we relinearize
     nh.param<int>("num_loop_relin", num_loop_relin, 0);
+
+    // Nice debug print
+    cout << "enforce_grav_mag: " << (int)enforce_grav_mag << endl;
+    cout << "estimate_toff_vicon_to_imu: " << (int)config->estimate_vicon_imu_toff << endl;
+    cout << "estimate_ori_vicon_to_imu: " << (int)config->estimate_vicon_imu_ori << endl;
+    cout << "estimate_pos_vicon_to_imu: " << (int)config->estimate_vicon_imu_pos << endl;
     cout << "num_loop_relin: " << num_loop_relin << endl;
+
+    // ================================================================================================
+    // ================================================================================================
+    // ================================================================================================
 
     // Setup our publishers
     pub_pathimu = nh.advertise<nav_msgs::Path>("/vicon2gt/optimized", 2);
@@ -141,9 +155,6 @@ void ViconGraphSolver::build_and_solve() {
         // move values forward in time
         values = values_result;
 
-        // Debug print what the current time offset is
-        if(estimate_toff_vicon_to_imu) ROS_INFO("current t_off = %.3f",values.at<Vector1>(T(0))(0));
-
         // Now print timing statistics
         ROS_INFO("\u001b[34m[TIME]: %.4f to build\u001b[0m",(rT2-rT1).total_microseconds() * 1e-6);
         ROS_INFO("\u001b[34m[TIME]: %.4f to optimize\u001b[0m",(rT3-rT2).total_microseconds() * 1e-6);
@@ -156,14 +167,12 @@ void ViconGraphSolver::build_and_solve() {
     cout << endl << "======================================" << endl;
     cout << "state_0: " << endl << values_result.at<JPLNavState>(X(map_states[timestamp_cameras.at(0)])) << endl;
     cout << "state_N: " << endl << values_result.at<JPLNavState>(X(map_states[timestamp_cameras.at(timestamp_cameras.size()-1)])) << endl;
-    cout << "R_BtoI: " << endl << values_result.at<Rot3>(C(0)).matrix() << endl << endl;
+    cout << "q_BtoI: " << endl << values_result.at<JPLQuaternion>(C(0)).q() << endl << endl;
     cout << "p_BinI: " << endl << values_result.at<Vector3>(C(1)) << endl << endl;
     cout << "gravity: " << endl << values_result.at<Vector3>(G(0)) << endl << endl;
     cout << "gravity norm: " << endl << values_result.at<Vector3>(G(0)).norm() << endl << endl;
-    if(estimate_toff_vicon_to_imu) cout << "t_off_vicon_to_imu: " << endl << values_result.at<Vector1>(T(0)) << endl << endl;
-    else cout << "t_off_vicon_to_imu: " << endl << 0.0000 << endl << endl;
+    cout << "t_off_vicon_to_imu: " << endl << values_result.at<Vector1>(T(0)) << endl << endl;
     cout << "======================================" << endl << endl;
-
 
 }
 
@@ -199,8 +208,7 @@ void ViconGraphSolver::write_to_file(std::string csvfilepath, std::string infofi
     for(size_t i=0; i<timestamp_cameras.size(); i++) {
         // get this state at this timestep
         JPLNavState state = values_result.at<JPLNavState>(X(map_states[timestamp_cameras.at(i)]));
-        // export to file
-        // (time(ns),px,py,pz,qw,qx,qy,qz,vx,vy,vz,bwx,bwy,bwz,bax,bay,baz)
+        // export to file (time(ns),px,py,pz,qw,qx,qy,qz,vx,vy,vz,bwx,bwy,bwz,bax,bay,baz)
         of_state << std::setprecision(20) << std::floor(1e9*timestamp_cameras.at(i)) << ","
                  << std::setprecision(6)
                  << state.p()(0,0) << ","<< state.p()(1,0) << ","<< state.p()(2,0) << ","
@@ -215,13 +223,12 @@ void ViconGraphSolver::write_to_file(std::string csvfilepath, std::string infofi
     // Save calibration and the such to file
     std::ofstream of_info;
     of_info.open(infofilepath, std::ofstream::out | std::ofstream::app);
-    of_info << "R_BtoI: " << endl << values_result.at<Rot3>(C(0)).matrix() << endl << endl ;
-    of_info << "q_BtoI: " << endl << rot_2_quat(values_result.at<Rot3>(C(0)).matrix()) << endl << endl;
+    of_info << "R_BtoI: " << endl << quat_2_Rot(values_result.at<JPLQuaternion>(C(0)).q()) << endl << endl ;
+    of_info << "q_BtoI: " << endl << values_result.at<JPLQuaternion>(C(0)).q() << endl << endl;
     of_info << "p_BinI: " << endl << values_result.at<Vector3>(C(1)) << endl << endl;
     of_info << "gravity: " << endl << values_result.at<Vector3>(G(0)) << endl << endl;
     of_info << "gravity norm: " << endl << values_result.at<Vector3>(G(0)).norm() << endl << endl;
-    if(estimate_toff_vicon_to_imu) of_info << "t_off_vicon_to_imu: " << endl << values_result.at<Vector1>(T(0)) << endl << endl;
-    else of_info << "t_off_vicon_to_imu: " << endl << 0.0000 << endl << endl;
+    of_info << "t_off_vicon_to_imu: " << endl << values_result.at<Vector1>(T(0)) << endl << endl;
     of_info.close();
 
 }
@@ -266,7 +273,7 @@ void ViconGraphSolver::visualize() {
     pub_pathimu.publish(arrIMU);
 
     // Get vicon marker body to imu calibration
-    Eigen::Matrix3d R_BtoI = values_result.at<Rot3>(C(0)).matrix();
+    Eigen::Matrix3d R_BtoI = quat_2_Rot(values_result.at<JPLQuaternion>(C(0)).q());
     Eigen::Vector3d p_BinI = values_result.at<Vector3>(C(1));
 
     // Append to our pose vector
@@ -277,7 +284,7 @@ void ViconGraphSolver::visualize() {
         Eigen::Matrix<double,4,1> q_VtoB;
         Eigen::Matrix<double,3,1> p_BinV;
         Eigen::Matrix<double,6,6> R_vicon;
-        double timestamp_corrected = (estimate_toff_vicon_to_imu)? timestamp_cameras.at(i)+values.at<Vector1>(T(0))(0) : timestamp_cameras.at(i)+init_toff_imu_to_vicon;
+        double timestamp_corrected = timestamp_cameras.at(i)+values.at<Vector1>(T(0))(0);
         bool has_vicon = interpolator->get_pose(timestamp_corrected,q_VtoB,p_BinV,R_vicon);
         if(!has_vicon)
             continue;
@@ -342,17 +349,14 @@ void ViconGraphSolver::get_imu_poses(std::vector<double> &times, std::vector<Eig
 void ViconGraphSolver::get_calibration(double &toff, Eigen::Matrix3d &R, Eigen::Vector3d &p, Eigen::Vector3d &g) {
 
     // Get vicon marker body to imu calibration
-    R = values_result.at<Rot3>(C(0)).matrix();
+    R = quat_2_Rot(values_result.at<JPLQuaternion>(C(0)).q());
     p = values_result.at<Vector3>(C(1));
 
     // Gravity in local frame
     g = values_result.at<Vector3>(G(0));
 
-    if(estimate_toff_vicon_to_imu) {
-        toff = values_result.at<Vector1>(T(0)).matrix()(0);
-    } else {
-        toff = init_toff_imu_to_vicon;
-    }
+    // Time offset betwen vicon and imu
+    toff = values_result.at<Vector1>(T(0)).matrix()(0);
 
 }
 
@@ -368,26 +372,23 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
     // Create gravity and calibration nodes and insert them
     if(init_states) {
-        values.insert(C(0), Rot3(init_R_BtoI));
+        values.insert(C(0), JPLQuaternion(rot_2_quat(init_R_BtoI)));
         values.insert(C(1), Vector3(init_p_BinI));
         values.insert(G(0), Vector3(init_grav_inV));
     }
 
     // If estimating the timeoffset logic
-    if(estimate_toff_vicon_to_imu) {
-        // Add value if first time
-        if(init_states) {
-            Vector1 temp;
-            temp(0) = init_toff_imu_to_vicon;
-            values.insert(T(0), temp);
-        }
-        // Prior to make time offset stable
-        Vector1 sigma;
-        sigma(0,0) = 0.02; // seconds
-        PriorFactor<Vector1> factor_timemag(T(0), values.at<Vector1>(T(0)), sigma);
-        graph->add(factor_timemag);
-        ROS_INFO("[BUILD]: current time offset is %.4f", values.at<Vector1>(T(0))(0));
+    if(init_states) {
+        Vector1 temp;
+        temp(0) = init_toff_imu_to_vicon;
+        values.insert(T(0), temp);
     }
+    // Prior to make time offset stable
+    Vector1 sigma;
+    sigma(0,0) = 0.02; // seconds
+    PriorFactor<Vector1> factor_timemag(T(0), values.at<Vector1>(T(0)), sigma);
+    graph->add(factor_timemag);
+    ROS_INFO("[BUILD]: current time offset is %.4f", values.at<Vector1>(T(0))(0));
 
     // If enforcing gravity magnitude, then add that prior factor here
     if(enforce_grav_mag) {
@@ -395,9 +396,8 @@ void ViconGraphSolver::build_problem(bool init_states) {
         sigma(0,0) = 1e-3;
         MagnitudePrior factor_gav(G(0),sigma,init_grav_inV.norm());
         graph->add(factor_gav);
-    } else {
-        ROS_INFO("[BUILD]: current gravity mag is %.4f", values.at<Vector3>(G(0)).norm());
     }
+    ROS_INFO("[BUILD]: current gravity mag is %.4f", values.at<Vector3>(G(0)).norm());
 
     // Loop through each camera time and construct the graph
     auto it1 = timestamp_cameras.begin();
@@ -409,7 +409,7 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
         // Current image time
         double timestamp = *it1;
-        double timestamp_corrected = (estimate_toff_vicon_to_imu)? timestamp+values.at<Vector1>(T(0))(0) : timestamp+init_toff_imu_to_vicon;
+        double timestamp_corrected = timestamp+values.at<Vector1>(T(0))(0);
 
         // First get the vicon pose at the current time
         Eigen::Matrix<double,4,1> q_VtoB;
@@ -451,13 +451,8 @@ void ViconGraphSolver::build_problem(bool init_states) {
         }
 
         // Add the vicon measurement to this pose
-        if(!estimate_toff_vicon_to_imu) {
-            MeasBased_ViconPoseFactor factor_vicon(X(map_states[timestamp]), C(0), C(1), R_vicon, q_VtoB, p_BinV);
-            graph->add(factor_vicon);
-        } else {
-            MeasBased_ViconPoseTimeoffsetFactor factor_vicon(X(map_states[timestamp]), C(0), C(1), T(0), timestamp, interpolator);
-            graph->add(factor_vicon);
-        }
+        MeasBased_ViconPoseTimeoffsetFactor factor_vicon(X(map_states[timestamp]), C(0), C(1), T(0), timestamp, interpolator, config);
+        graph->add(factor_vicon);
 
         // Skip the first ever pose
         if(it1 == timestamp_cameras.begin()) {
@@ -517,15 +512,15 @@ void ViconGraphSolver::optimize_problem() {
     ROS_INFO("[VICON-GRAPH]: graph nodes - %d", (int) graph->keys().size());
 
     // Setup the optimizer (levenberg)
-    LevenbergMarquardtParams config;
-    config.verbosity = NonlinearOptimizerParams::Verbosity::TERMINATION;
+    LevenbergMarquardtParams opti_config;
+    opti_config.verbosity = NonlinearOptimizerParams::Verbosity::TERMINATION;
     //config.verbosityLM = LevenbergMarquardtParams::VerbosityLM::SUMMARY;
     //config.verbosityLM = LevenbergMarquardtParams::VerbosityLM::TERMINATION;
-    config.absoluteErrorTol = 1e-30;
-    config.relativeErrorTol = 1e-30;
-    config.lambdaUpperBound = 1e20;
-    config.maxIterations = 20;
-    LevenbergMarquardtOptimizer optimizer(*graph, values, config);
+    opti_config.absoluteErrorTol = 1e-30;
+    opti_config.relativeErrorTol = 1e-30;
+    opti_config.lambdaUpperBound = 1e20;
+    opti_config.maxIterations = 20;
+    LevenbergMarquardtOptimizer optimizer(*graph, values, opti_config);
 
     // Setup optimizer (dogleg)
     //DoglegParams params;

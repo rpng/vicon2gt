@@ -37,10 +37,6 @@ using namespace gtsam;
 
 namespace gtsam {
 
-
-    /// JPL quaternion for the orientation
-    typedef Eigen::Matrix<double,4,1> JPLQuaternion;
-
     /// Bias for a sensor is currently typedef'd to Vector3
     typedef Eigen::Vector3d Bias3;
 
@@ -58,7 +54,7 @@ namespace gtsam {
 
         Vector3 alpha; ///< preintegration measurement due to position
         Vector3 beta; ///< preintegration measurement due to velocity
-        JPLQuaternion q_KtoK1; ///< preintegration measurement due to rotation
+        Vector4 q_KtoK1; ///< preintegration measurement due to rotation
 
         Bias3 ba_lin; ///< original acceleration bias linerization point
         Bias3 bg_lin; ///< original gyroscope bias linearization point
@@ -76,7 +72,7 @@ namespace gtsam {
 
         /// Construct from the two linking JPLNavStates, preingration measurement, and its covariance
         ImuFactorCPIv1(Key state_i, Key state_j, Key grav, Eigen::Matrix<double,15,15> covariance, double deltatime,
-                       Vector3 alpha, Vector3 beta, JPLQuaternion q_KtoK1, Bias3 ba_lin, Bias3 bg_lin,
+                       Vector3 alpha, Vector3 beta, Vector4 q_KtoK1, Bias3 ba_lin, Bias3 bg_lin,
                        Eigen::Matrix<double,3,3> J_q, Eigen::Matrix<double,3,3> J_beta, Eigen::Matrix<double,3,3> J_alpha,
                        Eigen::Matrix<double,3,3> H_beta, Eigen::Matrix<double,3,3> H_alpha) :
                 NoiseModelFactor3<JPLNavState, JPLNavState, Vector3>(noiseModel::Gaussian::Covariance(covariance), state_i, state_j, grav) {
@@ -114,7 +110,7 @@ namespace gtsam {
         }
 
         /// Return rotation delta measurement.
-        JPLQuaternion m_q() const {
+        Vector4 m_q() const {
             return q_KtoK1;
         }
 

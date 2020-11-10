@@ -69,8 +69,8 @@ list(APPEND thirdparty_libraries
 # All source files we use
 list(APPEND source_files
     src/gtsam/JPLNavState.cpp
+    src/gtsam/JPLQuaternion.cpp
     src/gtsam/ImuFactorCPIv1.cpp
-    src/gtsam/MeasBased_ViconPoseFactor.cpp
     src/gtsam/MeasBased_ViconPoseTimeoffsetFactor.cpp
     src/gtsam/MagnitudePrior.cpp
     src/meas/Interpolator.cpp
