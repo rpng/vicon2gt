@@ -167,7 +167,7 @@ void ViconGraphSolver::build_and_solve() {
     cout << endl << "======================================" << endl;
     cout << "state_0: " << endl << values_result.at<JPLNavState>(X(map_states[timestamp_cameras.at(0)])) << endl;
     cout << "state_N: " << endl << values_result.at<JPLNavState>(X(map_states[timestamp_cameras.at(timestamp_cameras.size()-1)])) << endl;
-    cout << "q_BtoI: " << endl << values_result.at<JPLQuaternion>(C(0)).q() << endl << endl;
+    cout << "R_BtoI: " << endl << quat_2_Rot(values_result.at<JPLQuaternion>(C(0)).q()) << endl << endl;
     cout << "p_BinI: " << endl << values_result.at<Vector3>(C(1)) << endl << endl;
     cout << "gravity: " << endl << values_result.at<Vector3>(G(0)) << endl << endl;
     cout << "gravity norm: " << endl << values_result.at<Vector3>(G(0)).norm() << endl << endl;
