@@ -25,21 +25,13 @@
 #include <cmath>
 #include <memory>
 #include <vector>
-#include <iomanip>
-#include <fstream>
-#include <sstream>
 #include <unistd.h>
-#include <Eigen/Dense>
-#include <Eigen/Geometry>
+#include <Eigen/Eigen>
 
 #include <ros/ros.h>
 #include <rosbag/bag.h>
-#include <rosbag/view.h>
-#include <sensor_msgs/Imu.h>
 #include <sensor_msgs/Image.h>
-#include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/TransformStamped.h>
 
 
 #include "meas/Propagator.h"

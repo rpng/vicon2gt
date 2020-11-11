@@ -31,9 +31,6 @@ using namespace std;
 using namespace gtsam;
 
 
-/**
- * Called on when optimizing to get the error of this measurement
- */
 gtsam::Vector ImuFactorCPIv1::evaluateError(const JPLNavState& state_i, const JPLNavState& state_j, const Vector3& gravity,
                                             boost::optional<Matrix&> H1, boost::optional<Matrix&> H2, boost::optional<Matrix&> H3) const {
 

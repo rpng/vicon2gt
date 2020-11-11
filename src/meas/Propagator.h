@@ -34,6 +34,7 @@
 #include "cpi/CpiBase.h"
 #include "cpi/CpiV1.h"
 #include "utils/quat_ops.h"
+#include "utils/colors.h"
 
 
 struct IMUDATA {

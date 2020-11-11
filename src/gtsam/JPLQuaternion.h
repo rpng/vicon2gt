@@ -38,7 +38,7 @@
 namespace gtsam {
 
     /**
-     * \brief JPL Navigation State
+     * @brief JPL Navigation State
      * Contains orientation, position, velocity, and biases
      */
     class JPLQuaternion {

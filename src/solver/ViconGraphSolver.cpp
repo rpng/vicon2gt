@@ -1,8 +1,7 @@
 /**
  * MIT License
- * Copyright (c) 2018 Patrick Geneva @ University of Delaware (Robot Perception & Navigation Group)
- * Copyright (c) 2018 Kevin Eckenhoff @ University of Delaware (Robot Perception & Navigation Group)
- * Copyright (c) 2018 Guoquan Huang @ University of Delaware (Robot Perception & Navigation Group)
+ * Copyright (c) 2020 Patrick Geneva @ University of Delaware (Robot Perception & Navigation Group)
+ * Copyright (c) 2020 Guoquan Huang @ University of Delaware (Robot Perception & Navigation Group)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -45,7 +44,7 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagat
 
     // Load gravity in vicon frame
     std::vector<double> vec_gravity;
-    std::vector<double> vec_gravity_default = {0.0,0.0,9.8};
+    std::vector<double> vec_gravity_default = {0.0,0.0,9.81};
     nh.param<std::vector<double>>("grav_inV", vec_gravity, vec_gravity_default);
     init_grav_inV << vec_gravity.at(0),vec_gravity.at(1),vec_gravity.at(2);
 
@@ -53,7 +52,9 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagat
     std::vector<double> R_BtoI;
     std::vector<double> R_BtoI_default = {1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0};
     nh.param<std::vector<double>>("R_BtoI", R_BtoI, R_BtoI_default);
-    init_R_BtoI << R_BtoI.at(0),R_BtoI.at(1),R_BtoI.at(2),R_BtoI.at(3),R_BtoI.at(4),R_BtoI.at(5),R_BtoI.at(6),R_BtoI.at(7),R_BtoI.at(8);
+    init_R_BtoI << R_BtoI.at(0),R_BtoI.at(1),R_BtoI.at(2),
+        R_BtoI.at(3),R_BtoI.at(4),R_BtoI.at(5),
+        R_BtoI.at(6),R_BtoI.at(7),R_BtoI.at(8);
 
     std::vector<double> p_BinI;
     std::vector<double> p_BinI_default = {0.0,0.0,0.0};
@@ -66,7 +67,7 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagat
     // Debug print to console
     cout << "init_grav_inV:" << endl << init_grav_inV << endl;
     cout << "init_R_BtoI:" << endl << init_R_BtoI << endl;
-    cout << "init_p_BinI:" << endl << init_p_BinI << endl;
+    cout << "init_p_BinI:" << endl << init_p_BinI.transpose() << endl;
     cout << "init_toff_imu_to_vicon:" << endl << init_toff_imu_to_vicon << endl;
 
     // ================================================================================================
@@ -95,7 +96,7 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagat
     // ================================================================================================
     // ================================================================================================
 
-    // Setup our publishers
+    // Setup our ROS publishers
     pub_pathimu = nh.advertise<nav_msgs::Path>("/vicon2gt/optimized", 2);
     pub_pathvicon = nh.advertise<nav_msgs::Path>("/vicon2gt/vicon", 2);
 
@@ -118,7 +119,7 @@ void ViconGraphSolver::build_and_solve() {
     auto it0 = timestamp_cameras.begin();
     while(it0 != timestamp_cameras.end()) {
         if(!propagator->has_bounding_imu(*it0)) {
-            ROS_INFO("    - deleted cam time %.9f",*it0);
+            ROS_INFO_THROTTLE(5,"    - deleted cam time %.9f [throttled]",*it0);
             it0 = timestamp_cameras.erase(it0);
         } else {
             it0++;
@@ -421,7 +422,7 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
         // Skip if we don't have a vicon measurement for this pose
         if(!has_vicon1 || !has_vicon2 || !has_vicon3) {
-            ROS_INFO("    - skipping camera time %.9f (no vicon pose found)",timestamp);
+            ROS_INFO_THROTTLE(5,"    - skipping camera time %.9f (no vicon pose found) [throttled]",timestamp);
             if(values.find(X(map_states[timestamp]))!=values.end()) {
                 values.erase(X(map_states[timestamp]));
             }
@@ -431,7 +432,7 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
         // Check if we can do the inverse
         if(std::isnan(R_vicon.norm()) || std::isnan(R_vicon.inverse().norm())) {
-            ROS_INFO("    - skipping camera time %.9f (R.norm = %.3f | Rinv.norm = %.3f)",timestamp,R_vicon.norm(),R_vicon.inverse().norm());
+            ROS_INFO_THROTTLE(5,"    - skipping camera time %.9f (R.norm = %.3f | Rinv.norm = %.3f) [throttled]",timestamp,R_vicon.norm(),R_vicon.inverse().norm());
             if(values.find(X(map_states[timestamp]))!=values.end()) {
                 values.erase(X(map_states[timestamp]));
             }
@@ -451,7 +452,10 @@ void ViconGraphSolver::build_problem(bool init_states) {
         }
 
         // Add the vicon measurement to this pose
-        MeasBased_ViconPoseTimeoffsetFactor factor_vicon(X(map_states[timestamp]), C(0), C(1), T(0), timestamp, interpolator, config);
+        MeasBased_ViconPoseTimeoffsetFactor factor_vicon(
+                X(map_states[timestamp]), C(0), C(1), T(0),
+                timestamp, interpolator, config
+        );
         graph->add(factor_vicon);
 
         // Skip the first ever pose
@@ -470,8 +474,8 @@ void ViconGraphSolver::build_problem(bool init_states) {
         Bias3 bg = values.at<JPLNavState>(X(map_states[time0])).bg();
         Bias3 ba = values.at<JPLNavState>(X(map_states[time0])).ba();
 
-        // Get the preintegrator
-        CpiV1 preint(0,0,0,0,false);
+        // Get the preintegrator (will get recreated with correct noises in propagator)
+        CpiV1 preint(0,0,0,0,true);
         bool has_imu = propagator->propagate(time0,time1,bg,ba,preint);
         assert(has_imu);
         assert(preint.DT==(time1-time0));
@@ -488,8 +492,14 @@ void ViconGraphSolver::build_problem(bool init_states) {
         }
 
         // Now create the IMU factor
-        ImuFactorCPIv1 factor_imu(X(map_states[time0]),X(map_states[time1]),G(0),preint.P_meas,preint.DT,preint.alpha_tau,preint.beta_tau,
-                                  preint.q_k2tau,preint.b_a_lin,preint.b_w_lin,preint.J_q,preint.J_b,preint.J_a,preint.H_b,preint.H_a);
+        ImuFactorCPIv1 factor_imu(
+                X(map_states[time0]),X(map_states[time1]),G(0),
+                preint.P_meas,preint.DT,preint.alpha_tau,preint.beta_tau,
+                preint.q_k2tau,
+                preint.b_a_lin,preint.b_w_lin,
+                preint.J_q,preint.J_b,preint.J_a,
+                preint.H_b,preint.H_a
+        );
         graph->add(factor_imu);
 
         // Finally, move forward in time!
@@ -497,8 +507,6 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
     }
     rT2 =  boost::posix_time::microsec_clock::local_time();
-
-
 
 }
 

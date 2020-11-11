@@ -37,7 +37,7 @@ namespace gtsam {
 
 
     /**
-     * Forces a vector to have a specified magnitude.
+     * @brief Forces a vector to have a specified magnitude.
      * Example: force gravity vector to be 9.81 in magnitude
      */
     class MagnitudePrior : public NoiseModelFactor1<Vector3> {
@@ -80,8 +80,8 @@ namespace gtsam {
         /// Define how two factors can be equal to each other
         bool equals(const NonlinearFactor &expected, double tol = 1e-9) const {
             // Cast the object
-            const MagnitudePrior *e =  dynamic_cast<const MagnitudePrior*>(&expected);
-            if(e == NULL) return false;
+            const auto *e =  dynamic_cast<const MagnitudePrior*>(&expected);
+            if(e == nullptr) return false;
             // Success, compare base noise values and the measurement values
             return NoiseModelFactor1<Vector3>::equals(*e, tol)
                    && std::abs(e->m_mag-m_mag) < tol;

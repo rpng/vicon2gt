@@ -34,9 +34,11 @@
 
 
 /**
- * Continuous Preintegration Theory for Graph-based Visual-Inertial Navigation
- * Authors: Kevin Eckenhoff, Patrick Geneva, and Guoquan Huang
- * http://udel.edu/~ghuang/papers/tr_cpi.pdf
+ * @brief CPI preintegration class.
+ *
+ * > Continuous Preintegration Theory for Graph-based Visual-Inertial Navigation
+ * > Authors: Kevin Eckenhoff, Patrick Geneva, and Guoquan Huang
+ * > http://udel.edu/~ghuang/papers/tr_cpi.pdf
  */
 class CpiV1: public CpiBase {
 
@@ -44,7 +46,7 @@ public:
 
 
     /**
-     * Default constructor for our Model 1 preintegration (piecewise constant measurement assumption)
+     * @brief Default constructor for our Model 1 preintegration (piecewise constant measurement assumption)
      * @param sigma_w gyroscope white noise density (rad/s/sqrt(hz))
      * @param sigma_wb gyroscope random walk (rad/s^2/sqrt(hz))
      * @param sigma_a accelerometer white noise density (m/s^2/sqrt(hz))
@@ -54,12 +56,7 @@ public:
             CpiBase(sigma_w, sigma_wb, sigma_a, sigma_ab, imu_avg_){}
 
     /**
-     * Deconstructor
-     */
-    //~CpiV1(){}
-
-    /**
-     * Our precompound function for Model 1
+     * @brief Our precompound function for Model 1
      * We will first analytically integrate our means, and Jacobians
      * Then we perform numerical integration for our measurement covariance
      */

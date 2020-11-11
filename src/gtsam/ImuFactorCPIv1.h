@@ -45,9 +45,13 @@ namespace gtsam {
 
 
     /**
-     * \brief Continuous Preintegration Factor Model 1
+     * @brief Continuous Preintegration Factor Model 1
      * Links two full JPL Navigation States with an IMU preintegrated measurement
      * NOTE: we have added gravity here which the gravity in the estimate frame of reference
+     *
+     * > Continuous Preintegration Theory for Graph-based Visual-Inertial Navigation
+     * > Authors: Kevin Eckenhoff, Patrick Geneva, and Guoquan Huang
+     * > http://udel.edu/~ghuang/papers/tr_cpi.pdf
      */
     class ImuFactorCPIv1 : public NoiseModelFactor3<JPLNavState, JPLNavState, Vector3> {
     private:
@@ -153,8 +157,8 @@ namespace gtsam {
         /// Define how two factors can be equal to each other
         bool equals(const NonlinearFactor &expected, double tol = 1e-9) const {
             // Cast the object
-            const ImuFactorCPIv1 *e =  dynamic_cast<const ImuFactorCPIv1*>(&expected);
-            if(e == NULL) return false;
+            const auto *e =  dynamic_cast<const ImuFactorCPIv1*>(&expected);
+            if(e == nullptr) return false;
             // Success, compare base noise values and the measurement values
             return NoiseModelFactor3<JPLNavState,JPLNavState,Vector3>::equals(*e, tol)
                    && gtsam::equal(deltatime, e->deltatime, tol)

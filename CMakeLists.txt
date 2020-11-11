@@ -3,21 +3,18 @@ cmake_minimum_required(VERSION 2.8.8)
 # Project name
 project(vicon2gt)
 
-# Include our cmake files
-#SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/)
-
 # Find catkin (the ROS build system)
-find_package(catkin REQUIRED COMPONENTS roscpp rosbag std_msgs geometry_msgs sensor_msgs nav_msgs visualization_msgs)
+find_package(catkin REQUIRED COMPONENTS roscpp rosbag geometry_msgs sensor_msgs nav_msgs)
 
 # Include libraries
 find_package(Eigen3 REQUIRED) # built gtsam with cmake -DGTSAM_USE_SYSTEM_EIGEN=ON ..
 find_package(Boost REQUIRED COMPONENTS system filesystem thread date_time serialization regex timer)
-find_package(GTSAM REQUIRED)
+find_package(GTSAM REQUIRED) # built gtsam with cmake -DGTSAM_USE_SYSTEM_EIGEN=ON ..
 set(GTSAM_LIBRARIES gtsam)
 
 # Describe catkin project
 catkin_package(
-    CATKIN_DEPENDS roscpp rosbag std_msgs geometry_msgs sensor_msgs nav_msgs visualization_msgs
+    CATKIN_DEPENDS roscpp rosbag geometry_msgs sensor_msgs nav_msgs
     INCLUDE_DIRS src
 )
 
@@ -40,10 +37,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -fno-sign
 # Enable debug flags (use if you want to debug in gdb)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -Wall")
 
-# Include all thirdparty source files in build
-# NOTE: we need Eigen since GTSAM is picky about what Eigen it will use
-file(GLOB_RECURSE external_headers external/*.h external/*.hpp)
-file(GLOB_RECURSE external_sources external/*.cpp)
 
 # Include our header files
 include_directories(
@@ -66,8 +59,11 @@ list(APPEND thirdparty_libraries
     ${catkin_LIBRARIES}
 )
 
-# All source files we use
-list(APPEND source_files
+
+##################################################
+# Make the library
+##################################################
+add_library(vicon2gt_lib SHARED
     src/gtsam/JPLNavState.cpp
     src/gtsam/JPLQuaternion.cpp
     src/gtsam/ImuFactorCPIv1.cpp
@@ -78,20 +74,19 @@ list(APPEND source_files
     src/sim/BsplineSE3.cpp
     src/sim/Simulator.cpp
     src/solver/ViconGraphSolver.cpp
-    ${external_sources}
 )
-
-
+target_link_libraries(vicon2gt_lib ${thirdparty_libraries})
+target_include_directories(vicon2gt_lib PUBLIC src)
 
 
 ##################################################
 # Make binary files!
 ##################################################
-add_executable(estimate_vicon2gt src/estimate_vicon2gt.cpp ${source_files})
-target_link_libraries(estimate_vicon2gt ${thirdparty_libraries})
+add_executable(estimate_vicon2gt src/estimate_vicon2gt.cpp)
+target_link_libraries(estimate_vicon2gt vicon2gt_lib ${thirdparty_libraries})
 
-add_executable(run_simulation src/run_simulation.cpp ${source_files})
-target_link_libraries(run_simulation ${thirdparty_libraries})
+add_executable(run_simulation src/run_simulation.cpp)
+target_link_libraries(run_simulation vicon2gt_lib ${thirdparty_libraries})
 
 
 

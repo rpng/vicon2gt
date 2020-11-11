@@ -33,9 +33,11 @@
 
 
 /**
- * Continuous Preintegration Theory for Graph-based Visual-Inertial Navigation
- * Authors: Kevin Eckenhoff, Patrick Geneva, and Guoquan Huang
- * http://udel.edu/~ghuang/papers/tr_cpi.pdf
+ * @brief CPI preintegration base class.
+ *
+ * > Continuous Preintegration Theory for Graph-based Visual-Inertial Navigation
+ * > Authors: Kevin Eckenhoff, Patrick Geneva, and Guoquan Huang
+ * > http://udel.edu/~ghuang/papers/tr_cpi.pdf
  */
 class CpiBase {
 
@@ -43,7 +45,7 @@ public:
 
 
     /**
-     * Default constructor
+     * @brief Default constructor
      * @param sigma_w gyroscope white noise density (rad/s/sqrt(hz))
      * @param sigma_wb gyroscope random walk (rad/s^2/sqrt(hz))
      * @param sigma_a accelerometer white noise density (m/s^2/sqrt(hz))
@@ -66,12 +68,7 @@ public:
     }
 
     /**
-     * Deconstructor (base classes need to have this implemented)
-     */
-    //virtual ~CpiBase();
-
-    /**
-     * This function sets the linearization points we are to preintegrate about
+     * @brief This function sets the linearization points we are to preintegrate about
      * For model 2 we will also pass the q_GtoK and current gravity estimate
      */
     void setLinearizationPoints(Eigen::Matrix<double,3,1> b_w_lin_, Eigen::Matrix<double,3,1> b_a_lin_,
@@ -85,7 +82,7 @@ public:
 
 
     /**
-     * Function that handles new IMU messages, will precompound our means, jacobians, and measurement covariance
+     * @brief Function that handles new IMU messages, will precompound our means, jacobians, and measurement covariance
      */
     virtual void feed_IMU(double t_0, double t_1, Eigen::Matrix<double,3,1> w_m_0, Eigen::Matrix<double,3,1> a_m_0,
                           Eigen::Matrix<double,3,1> w_m_1 = Eigen::Matrix<double,3,1>::Zero(),
@@ -97,7 +94,6 @@ public:
     // For version 1 we should average the measurement
     // For version 2 we average the local true
     bool imu_avg = false;
-
 
     // Measurement Means
     double DT = 0;

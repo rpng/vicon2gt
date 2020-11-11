@@ -95,7 +95,7 @@ namespace gtsam {
         /// Define how two factors can be equal to each other
         bool equals(const NonlinearFactor &expected, double tol = 1e-9) const {
             // Cast the object
-            const MeasBased_ViconPoseTimeoffsetFactor *e =  dynamic_cast<const MeasBased_ViconPoseTimeoffsetFactor*>(&expected);
+            const auto *e =  dynamic_cast<const MeasBased_ViconPoseTimeoffsetFactor*>(&expected);
             if(e == nullptr) return false;
             // Success, compare base noise values and the measurement values
             return NoiseModelFactor4<JPLNavState,JPLQuaternion,Vector3,Vector1>::equals(*e, tol)

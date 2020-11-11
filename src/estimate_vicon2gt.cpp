@@ -26,22 +26,16 @@
 #include <cmath>
 #include <memory>
 #include <vector>
-#include <iomanip>
-#include <fstream>
-#include <sstream>
 #include <unistd.h>
-#include <Eigen/Dense>
-#include <Eigen/Geometry>
+#include <Eigen/Eigen>
 
 #include <ros/ros.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 #include <sensor_msgs/Imu.h>
-#include <sensor_msgs/Image.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TransformStamped.h>
-
 
 #include "meas/Propagator.h"
 #include "meas/Interpolator.h"
@@ -101,7 +95,7 @@ int main(int argc, char** argv)
     ros::Time time_init = view_full.getBeginTime();
     time_init += ros::Duration(bag_start);
     ros::Time time_finish = (bag_durr < 0)? view_full.getEndTime() : time_init + ros::Duration(bag_durr);
-    ROS_INFO("loading rosbag...");
+    ROS_INFO("loading rosbag into memory...");
     ROS_INFO("    - time start = %.6f", time_init.toSec());
     ROS_INFO("    - time end   = %.6f", time_finish.toSec());
     ROS_INFO("    - duration   = %.2f (secs)", time_finish.toSec()-time_init.toSec());
@@ -163,7 +157,6 @@ int main(int argc, char** argv)
         // If ros is wants us to stop, break out
         if (!ros::ok())
             break;
-
 
         // Handle IMU messages
         sensor_msgs::Imu::ConstPtr s0 = m.instantiate<sensor_msgs::Imu>();
@@ -236,6 +229,13 @@ int main(int argc, char** argv)
     ROS_INFO("    - number imu   = %d",ct_imu);
     ROS_INFO("    - number cam   = %d",ct_cam);
     ROS_INFO("    - number vicon = %d",ct_vic);
+
+    // Check to make sure we have data to optimize
+    if (ct_imu == 0 || ct_cam == 0 || ct_vic == 0) {
+        ROS_ERROR("Not enough data to optimize with!");
+        ros::shutdown();
+        return EXIT_FAILURE;
+    }
 
     // Create the graph problem, and solve it
     ViconGraphSolver solver(nh,propagator,interpolator,timestamp_cameras);
