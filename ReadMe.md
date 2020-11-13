@@ -7,37 +7,43 @@ Please take a look at the **[REPORT](docs/report.pdf)** for specific details and
 You will need to have a bag dataset that has the IMU, camera, and motion capture measurements of either `geometry_msgs::TransformStamped`, `geometry_msgs::PoseStamped`, or `nav_msgs::Odometry`.
 If you are using the odometry topic it will use the provided covariance, otherwise it will use the one specified in the launch file.
 To run please take a look at the example launch files and try them out before testing on your own dataset.
-
+ros
 
 ## Example Outputs
 
 
-![trajectory optimized](docs/traj_opt.png)
-![trajectory vicon](docs/traj_vicon_noisy.png)
+![trajectory optimized](docs/traj.png)
 
 ```
-======================================
-Trajectory Errors (deg,m)
-======================================
-rmse_ori = 0.02111 | rmse_pos = 0.02659
-mean_ori = 0.01920 | mean_pos = 0.02485
-min_ori  = 0.00109 | min_pos  = 0.00214
-max_ori  = 0.06260 | max_pos  = 0.05168
-std_ori  = 0.00878 | std_pos  = 0.00947
+state_0: 
+m_time:[1413394882.44]'
+q:[0.0257068648823, -0.795603373718, 0.0363500247023, 0.604179695563]'
+bg:[-0.00189916154709, 0.0243152833864, 0.0807307477958]'
+v:[-0.000133337500769, 0.00575180823653, -0.000724871724463]'
+ba:[0.0190844911612, 0.091082677377, 0.00706744868603]'
+p:[-1.05876790375, 0.428205735887, 1.33507858186]'
 
-Converged Calib vs Groundtruth
-======================================
-GT  toff: -0.07539
-EST toff: -0.07485
+state_N: 
+m_time:[1413394997.14]'
+q:[-0.492577574755, -0.637052268672, -0.359427482017, 0.4715332703]'
+bg:[-0.00161559034645, 0.0255108277786, 0.079954020838]'
+v:[-0.00726564037527, 0.012639815567, -0.00249341953281]'
+ba:[0.0311904335341, 0.0279113668375, 0.0250458337156]'
+p:[-3.02776826575, -0.526174099205, 0.96038346419]'
 
-GT  grav_inV: 0.763, 9.180, -3.373
-EST grav_inV: 0.762, 9.180, -3.374
+R_BtoI: 
+ 0.301686577941 0.0177220217954  0.953242434344
+0.0246935408972 -0.999637058319 0.0107694323235
+ 0.953087319047 0.0202899378534 -0.302014702778
 
-GT  q_BtoI: -0.079, 0.070, 0.027, 0.994
-EST q_BtoI: -0.079, 0.070, 0.027, 0.994
+p_BinI: 
+ 0.0765661266578 -0.0237148659109 -0.117918182433
 
-GT  p_BinI: -0.392, 0.052, -0.209
-EST p_BinI: -0.388, 0.054, -0.211
+gravity: 
+0.0743268225068 0.0849888222512 9.76992397331
+
+t_off_vicon_to_imu: 
+0.196106089294
 ```
 
 

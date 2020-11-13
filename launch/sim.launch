@@ -13,7 +13,7 @@
     <arg name="stats_path_info"     default="/tmp/vicon2gt_info.txt" />
 
     <!-- vicon noise values -->
-    <arg name="vicon_sigmas" default="[0.001,0.001,0.001,0.02,0.02,0.02]" />
+    <arg name="vicon_sigmas" default="[0.005,0.005,0.005,0.02,0.02,0.02]" />
 
     <!-- set the total number of OpenMP threads -->
     <env name="OMP_NUM_THREADS" value="4" />
