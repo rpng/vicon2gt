@@ -27,9 +27,6 @@
 
 
 
-/**
- * This should append incoming POSE messages to our stored data array
- */
 void Interpolator::feed_pose(double timestamp, Eigen::Matrix<double,4,1> q, Eigen::Matrix<double,3,1> p,
                              Eigen::Matrix<double,3,3> R_q, Eigen::Matrix<double,3,3> R_p) {
 
@@ -48,9 +45,6 @@ void Interpolator::feed_pose(double timestamp, Eigen::Matrix<double,4,1> q, Eige
 }
 
 
-/**
- * This should append incoming ODOM messages to our stored data array
- */
 void Interpolator::feed_odom(double timestamp, Eigen::Matrix<double,4,1> q, Eigen::Matrix<double,3,1> p,
                              Eigen::Matrix<double,3,1> v, Eigen::Matrix<double,3,1> w,
                              Eigen::Matrix<double,3,3> R_q, Eigen::Matrix<double,3,3> R_p,
@@ -74,14 +68,6 @@ void Interpolator::feed_odom(double timestamp, Eigen::Matrix<double,4,1> q, Eige
 
 }
 
-
-
-
-/**
- * Given a timestamp, this will get the pose at that time
- * If we do not have the pose, we will perform interpolation of two bounding measurements to find it
- * We also return the measurement covariance associated with this pose
- */
 bool Interpolator::get_pose(double timestamp, Eigen::Matrix<double,4,1>& q,
                             Eigen::Matrix<double,3,1>& p, Eigen::Matrix<double,6,6>& R) {
 
@@ -283,7 +269,7 @@ bool Interpolator::get_pose_with_jacobian(double timestamp, Eigen::Matrix<double
     R = Hu*R_12*Hu.transpose();
 
     // Jacobian in respect to our time offset
-    double H_lambda2toff = 1.0/(pose1.timestamp-pose0.timestamp);
+    double H_lambda2toff = -1.0/(pose1.timestamp-pose0.timestamp);
     H_toff.setZero();
     H_toff.block(0,0,3,1) = -R_0toi*JR_r0i*log_so3(R_0to1)*H_lambda2toff;
     H_toff.block(3,0,3,1) = (pose1.p - pose0.p)*H_lambda2toff;

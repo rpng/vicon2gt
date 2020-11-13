@@ -56,6 +56,8 @@ namespace gtsam {
     class JPLNavState {
     private:
 
+        double m_time; ///< Timestamp that this state occurred at (seconds in IMU clock)
+
         Vector4 q_GtoI; ///< Rotation from global to IMU
         Bias3 biasg; ///< Bias of the gyroscope
         Velocity3 v_IinG; ///< Velocity of IMU in global
@@ -69,10 +71,11 @@ namespace gtsam {
         };
 
         /// Default constructor
-        JPLNavState() : q_GtoI(0,0,0,1), biasg(0,0,0), v_IinG(0,0,0), biasa(0,0,0), p_IinG(0,0,0) { }
+        JPLNavState() : m_time(0), q_GtoI(0,0,0,1), biasg(0,0,0), v_IinG(0,0,0), biasa(0,0,0), p_IinG(0,0,0) { }
 
         /// Construct from JPLNavState directly
         JPLNavState(const JPLNavState& navstate) {
+            this->m_time = navstate.m_time;
             this->q_GtoI = navstate.q_GtoI;
             this->biasg = navstate.biasg;
             this->v_IinG = navstate.v_IinG;
@@ -81,8 +84,13 @@ namespace gtsam {
         }
 
         /// Construct from orientation, position, velocity, and biases
-        JPLNavState(const Vector4& q, const Bias3& bgi, const Velocity3& v, const Bias3& bai, const Vector3& p) :
-                q_GtoI(q), biasg(bgi), v_IinG(v), biasa(bai), p_IinG(p) { }
+        JPLNavState(const double &time, const Vector4& q, const Bias3& bgi, const Velocity3& v, const Bias3& bai, const Vector3& p) :
+                m_time(time), q_GtoI(q), biasg(bgi), v_IinG(v), biasa(bai), p_IinG(p) { }
+
+        /// Return rotation quaternion.
+        double time() const {
+            return m_time;
+        }
 
         /// Return rotation quaternion.
         Vector4 q() const {
@@ -118,6 +126,7 @@ namespace gtsam {
         /// How this node gets printed in the ostream
         GTSAM_EXPORT
         friend std::ostream &operator<<(std::ostream &os, const JPLNavState& state) {
+            os << "m_time:[" << state.time() << "]'" << endl;
             os << "q:[" << state.q()(0) << ", " << state.q()(1) << ", " << state.q()(2) << ", " << state.q()(3) << "]'" << endl;
             os << "bg:[" << state.bg()(0) << ", " << state.bg()(1) << ", " << state.bg()(2) << "]'" << endl;
             os << "v:[" << state.v()(0) << ", " << state.v()(1) << ", " << state.v()(2) << "]'" << endl;
@@ -133,7 +142,8 @@ namespace gtsam {
 
         /// Equals function to compare this and another JPLNavState
         bool equals(const JPLNavState& other, double tol = 1e-8) const {
-            return gtsam::equal(q_GtoI, other.q_GtoI, tol)
+            return gtsam::equal(m_time, other.m_time, tol)
+                   && gtsam::equal(q_GtoI, other.q_GtoI, tol)
                    && gtsam::equal(biasg, other.biasg, tol)
                    && gtsam::equal(v_IinG, other.v_IinG, tol)
                    && gtsam::equal(biasa, other.biasa, tol)

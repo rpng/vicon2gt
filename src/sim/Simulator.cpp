@@ -244,7 +244,7 @@ bool Simulator::get_next_vicon(double &time_vicon, Eigen::Vector4d &q_VtoB, Eige
     // Else lets do a new measurement!!!
     timestamp_last_vicon += 1.0/params.sim_freq_vicon;
     timestamp = timestamp_last_vicon;
-    time_vicon = timestamp_last_vicon + params.viconimu_dt;
+    time_vicon = timestamp_last_vicon - params.viconimu_dt;
 
     // Get the pose at the current timestep
     Eigen::Matrix3d R_GtoI;

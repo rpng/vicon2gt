@@ -48,29 +48,21 @@ namespace gtsam {
     class MeasBased_ViconPoseTimeoffsetFactor : public NoiseModelFactor4<JPLNavState, JPLQuaternion, Vector3, Vector1> {
     private:
 
-        double m_time; ///< time in the vicon clock that those pose should be at
         std::shared_ptr<Interpolator> m_interpolator; ///< interpolator that has vicon poses in it
         std::shared_ptr<GtsamConfig> m_config; ///< config file for if we should estimate calibration
 
     public:
 
         /// Construct from the two linking JPLNavStates, preingration measurement, and its covariance
-        MeasBased_ViconPoseTimeoffsetFactor(Key kstate, Key kR_BtoI, Key kp_BinI, Key kt_off, double timestamp,
+        MeasBased_ViconPoseTimeoffsetFactor(Key kstate, Key kR_BtoI, Key kp_BinI, Key kt_off,
                                             std::shared_ptr<Interpolator> interpolator, std::shared_ptr<GtsamConfig> config) :
                 NoiseModelFactor4<JPLNavState, JPLQuaternion, Vector3, Vector1>(noiseModel::Robust::Create(
                         noiseModel::mEstimator::Huber::Create(1.345),
                          noiseModel::Gaussian::Covariance(Eigen::Matrix<double,6,6>::Identity())
                         ), kstate, kR_BtoI, kp_BinI, kt_off) {
-            this->m_time = timestamp;
             this->m_interpolator = interpolator;
             this->m_config = config;
         }
-
-        /// Timestamp we will interpolate to (in vicon clock frame)
-        double time() const {
-            return m_time;
-        }
-
 
         /// Error function. Given the current states, calculate the measurement error/residual
         gtsam::Vector evaluateError(const JPLNavState& state, const JPLQuaternion& R_BtoI, const Vector3& p_BinI, const Vector1& t_off,
@@ -81,14 +73,12 @@ namespace gtsam {
         /// How this factor gets printed in the ostream
         GTSAM_EXPORT
         friend std::ostream &operator<<(std::ostream &os, const MeasBased_ViconPoseTimeoffsetFactor& factor) {
-            os << "m_time:[" << factor.time() << "]'" << endl;
             return os;
         }
 
         /// Print function for this factor
         void print(const std::string& s, const KeyFormatter& keyFormatter = DefaultKeyFormatter) const {
             std::cout << s << "ViconPoseTimeoffsetFactor(" << keyFormatter(this->key1()) << "," << keyFormatter(this->key2()) << "," << keyFormatter(this->key3()) << "," << keyFormatter(this->key4()) << ")" << std::endl;
-            std::cout << "  measured: " << std::endl << *this << std::endl;
             this->noiseModel_->print("  noise model: ");
         }
 
@@ -98,8 +88,7 @@ namespace gtsam {
             const auto *e =  dynamic_cast<const MeasBased_ViconPoseTimeoffsetFactor*>(&expected);
             if(e == nullptr) return false;
             // Success, compare base noise values and the measurement values
-            return NoiseModelFactor4<JPLNavState,JPLQuaternion,Vector3,Vector1>::equals(*e, tol)
-                   && gtsam::equal(m_time, e->m_time, tol);
+            return NoiseModelFactor4<JPLNavState,JPLQuaternion,Vector3,Vector1>::equals(*e, tol);
         }
 
     };

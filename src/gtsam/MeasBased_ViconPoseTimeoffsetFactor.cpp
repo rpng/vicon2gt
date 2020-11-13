@@ -39,6 +39,7 @@ gtsam::Vector MeasBased_ViconPoseTimeoffsetFactor::evaluateError(const JPLNavSta
     //================================================================================
 
     // Separate our variables from our states
+    double timestamp_inI = state.time();
     Vector4 q_VtoI = state.q();
     Vector3 p_IinV = state.p();
     Vector4 q_BtoI_vec = q_BtoI.q();
@@ -56,7 +57,7 @@ gtsam::Vector MeasBased_ViconPoseTimeoffsetFactor::evaluateError(const JPLNavSta
     Eigen::Matrix<double,3,1> p_interp;
     Eigen::Matrix<double,6,6> R_interp;
     Eigen::Matrix<double,6,1> H_toff;
-    bool has_vicon = m_interpolator->get_pose_with_jacobian(m_time+t_off(0),q_interp,p_interp,R_interp, H_toff);
+    bool has_vicon = m_interpolator->get_pose_with_jacobian(timestamp_inI-t_off(0),q_interp,p_interp,R_interp, H_toff);
 
     // Find the sqrt inverse to whittening
     // This is because our measurement noise can change every iteration based on interpolation

@@ -65,7 +65,7 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagat
     nh.param<double>("toff_imu_to_vicon", init_toff_imu_to_vicon, 0.0);
 
     // Debug print to console
-    cout << "init_grav_inV:" << endl << init_grav_inV << endl;
+    cout << "init_grav_inV:" << endl << init_grav_inV.transpose() << endl;
     cout << "init_R_BtoI:" << endl << init_R_BtoI << endl;
     cout << "init_p_BinI:" << endl << init_p_BinI.transpose() << endl;
     cout << "init_toff_imu_to_vicon:" << endl << init_toff_imu_to_vicon << endl;
@@ -285,8 +285,8 @@ void ViconGraphSolver::visualize() {
         Eigen::Matrix<double,4,1> q_VtoB;
         Eigen::Matrix<double,3,1> p_BinV;
         Eigen::Matrix<double,6,6> R_vicon;
-        double timestamp_corrected = timestamp_cameras.at(i)+values.at<Vector1>(T(0))(0);
-        bool has_vicon = interpolator->get_pose(timestamp_corrected,q_VtoB,p_BinV,R_vicon);
+        double timestamp_inV = timestamp_cameras.at(i) - values.at<Vector1>(T(0))(0);
+        bool has_vicon = interpolator->get_pose(timestamp_inV, q_VtoB, p_BinV, R_vicon);
         if(!has_vicon)
             continue;
 
@@ -409,22 +409,22 @@ void ViconGraphSolver::build_problem(bool init_states) {
             break;
 
         // Current image time
-        double timestamp = *it1;
-        double timestamp_corrected = timestamp+values.at<Vector1>(T(0))(0);
+        double timestamp_inI = *it1;
+        double timestamp_inV = timestamp_inI - values.at<Vector1>(T(0))(0);
 
         // First get the vicon pose at the current time
         Eigen::Matrix<double,4,1> q_VtoB;
         Eigen::Matrix<double,3,1> p_BinV;
         Eigen::Matrix<double,6,6> R_vicon;
-        bool has_vicon1 = interpolator->get_pose(timestamp_corrected-1.0,q_VtoB,p_BinV,R_vicon);
-        bool has_vicon2 = interpolator->get_pose(timestamp_corrected+1.0,q_VtoB,p_BinV,R_vicon);
-        bool has_vicon3 = interpolator->get_pose(timestamp_corrected,q_VtoB,p_BinV,R_vicon);
+        bool has_vicon1 = interpolator->get_pose(timestamp_inV - 1.0, q_VtoB, p_BinV, R_vicon);
+        bool has_vicon2 = interpolator->get_pose(timestamp_inV + 1.0, q_VtoB, p_BinV, R_vicon);
+        bool has_vicon3 = interpolator->get_pose(timestamp_inV, q_VtoB, p_BinV, R_vicon);
 
         // Skip if we don't have a vicon measurement for this pose
         if(!has_vicon1 || !has_vicon2 || !has_vicon3) {
-            ROS_INFO_THROTTLE(5,"    - skipping camera time %.9f (no vicon pose found) [throttled]",timestamp);
-            if(values.find(X(map_states[timestamp]))!=values.end()) {
-                values.erase(X(map_states[timestamp]));
+            ROS_INFO_THROTTLE(5, "    - skipping camera time %.9f (no vicon pose found) [throttled]", timestamp_inI);
+            if(values.find(X(map_states[timestamp_inI])) != values.end()) {
+                values.erase(X(map_states[timestamp_inI]));
             }
             it1 = timestamp_cameras.erase(it1);
             continue;
@@ -432,9 +432,9 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
         // Check if we can do the inverse
         if(std::isnan(R_vicon.norm()) || std::isnan(R_vicon.inverse().norm())) {
-            ROS_INFO_THROTTLE(5,"    - skipping camera time %.9f (R.norm = %.3f | Rinv.norm = %.3f) [throttled]",timestamp,R_vicon.norm(),R_vicon.inverse().norm());
-            if(values.find(X(map_states[timestamp]))!=values.end()) {
-                values.erase(X(map_states[timestamp]));
+            ROS_INFO_THROTTLE(5, "    - skipping camera time %.9f (R.norm = %.3f | Rinv.norm = %.3f) [throttled]", timestamp_inI, R_vicon.norm(), R_vicon.inverse().norm());
+            if(values.find(X(map_states[timestamp_inI])) != values.end()) {
+                values.erase(X(map_states[timestamp_inI]));
             }
             it1 = timestamp_cameras.erase(it1);
             continue;
@@ -447,14 +447,14 @@ void ViconGraphSolver::build_problem(bool init_states) {
             Eigen::Matrix<double,3,1> v_IinV = Eigen::Matrix<double,3,1>::Zero();
             Eigen::Matrix<double,3,1> ba = Eigen::Matrix<double,3,1>::Zero();
             Eigen::Matrix<double,3,1> p_IinV = p_BinV - quat_2_Rot(Inv(q_VtoB))*init_R_BtoI.transpose()*init_p_BinI;
-            JPLNavState imu_state(q_VtoI, bg, v_IinV, ba, p_IinV);
-            values.insert(X(map_states[timestamp]), imu_state);
+            JPLNavState imu_state(timestamp_inI, q_VtoI, bg, v_IinV, ba, p_IinV);
+            values.insert(X(map_states[timestamp_inI]), imu_state);
         }
 
         // Add the vicon measurement to this pose
         MeasBased_ViconPoseTimeoffsetFactor factor_vicon(
-                X(map_states[timestamp]), C(0), C(1), T(0),
-                timestamp, interpolator, config
+                X(map_states[timestamp_inI]), C(0), C(1), T(0),
+                interpolator, config
         );
         graph->add(factor_vicon);
 

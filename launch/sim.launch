@@ -3,7 +3,17 @@
 
     <!-- dataset name -->
     <!-- euroc_V1_01_easy, tum_corridor1_512_16_okvis, udel_gore, udel_arl -->
-    <arg name="dataset" value="udel_gore" />
+    <arg name="dataset" default="tum_corridor1_512_16_okvis" />
+    <arg name="seed"    default="1" />
+
+    <!-- saving to file -->
+    <arg name="save2file"           default="false" />
+    <arg name="stats_path_states"   default="/tmp/vicon2gt_state.csv" />
+    <arg name="stats_path_gt"       default="/tmp/vicon2gt_state_gt.csv" />
+    <arg name="stats_path_info"     default="/tmp/vicon2gt_info.txt" />
+
+    <!-- vicon noise values -->
+    <arg name="vicon_sigmas" default="[0.001,0.001,0.001,0.02,0.02,0.02]" />
 
     <!-- set the total number of OpenMP threads -->
     <env name="OMP_NUM_THREADS" value="4" />
@@ -12,11 +22,17 @@
     <node name="run_simulation" pkg="vicon2gt" type="run_simulation" output="screen" clear_params="true" required="true">
 
         <!-- simulation -->
-        <param name="sim_seed"          type="int" value="2" />
+        <param name="sim_seed"          type="int"    value="$(arg seed)" />
         <param name="sim_traj_path"     type="string" value="$(find vicon2gt)/data/$(arg dataset).txt" />
         <param name="sim_freq_imu"      type="double" value="200" />
         <param name="sim_freq_cam"      type="double" value="20" />
         <param name="sim_freq_vicon"    type="double" value="100" />
+
+        <!-- save information -->
+        <param name="save2file"            type="bool"   value="$(arg save2file)" />
+        <param name="stats_path_states"    type="string" value="$(arg stats_path_states)" />
+        <param name="stats_path_states_gt" type="string" value="$(arg stats_path_gt)" />
+        <param name="stats_path_info"      type="string" value="$(arg stats_path_info)" />
 
         <!-- world parameters -->
         <rosparam param="grav_inV">[0.0,0.0,9.81]</rosparam>
@@ -31,7 +47,7 @@
 
         <!-- vicon sigmas, only used if we don't get odometry -->
         <!-- sigmas: (rx,ry,rz,px,py,pz) -->
-        <rosparam param="vicon_sigmas">[0.001,0.001,0.001,0.01,0.01,0.01]</rosparam>
+        <rosparam param="vicon_sigmas" subst_value="true">$(arg vicon_sigmas)</rosparam>
 
         <!-- vi-sensor -->
         <param name="gyroscope_noise_density"      type="double"   value="1.6968e-04" />

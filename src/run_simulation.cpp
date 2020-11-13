@@ -51,6 +51,18 @@ int main(int argc, char** argv)
     // Setup publisher (needs to be at top so ROS registers it)
     ros::Publisher pub_pathgt = nh.advertise<nav_msgs::Path>("/vicon2gt/groundtruth", 2);
 
+    // Load the export path
+    bool save2file;
+    std::string path_states, path_states_gt, path_info;
+    nh.param<std::string>("stats_path_states", path_states, "states.csv");
+    nh.param<std::string>("stats_path_states_gt", path_states_gt, "gt.csv");
+    nh.param<std::string>("stats_path_info", path_info, "vicon2gt_info.txt");
+    nh.param<bool>("save2file", save2file, false);
+    ROS_INFO("save path information...");
+    ROS_INFO("    - state path: %s", path_states.c_str());
+    ROS_INFO("    - info path: %s", path_info.c_str());
+    ROS_INFO("    - save to file: %d", (int)save2file);
+
     //===================================================================================
     //===================================================================================
     //===================================================================================
@@ -152,6 +164,28 @@ int main(int argc, char** argv)
     // Visualize onto ROS
     solver.visualize();
 
+    // Finally, save to file all the information
+    std::ofstream of_state;
+    if(save2file) {
+
+        // save generated trajectory
+        solver.write_to_file(path_states,path_info);
+
+        // Open the groundtruth trajectory file
+        ROS_INFO("saving *groundtruth* states to file");
+        if (boost::filesystem::exists(path_states_gt)) {
+            boost::filesystem::remove(path_states_gt);
+            ROS_INFO("    - old state file found, deleted...");
+        }
+        boost::filesystem::path p1(path_states_gt);
+        boost::filesystem::create_directories(p1.parent_path());
+
+        // Open our state file!
+        of_state.open(path_states_gt, std::ofstream::out | std::ofstream::app);
+        of_state << "#time(ns),px,py,pz,qw,qx,qy,qz,vx,vy,vz,bwx,bwy,bwz,bax,bay,baz" << std::endl;
+
+    }
+
     //===================================================================================
     //===================================================================================
     //===================================================================================
@@ -174,9 +208,9 @@ int main(int argc, char** argv)
         Eigen::Matrix<double,7,1> est_state = poses.at(i);
 
         // compute error
-        double ori = 2*(quat_multiply(
-                est_state.block(0,0,4,1),
-                Inv(gt_state.block(1,0,4,1))
+        double ori = 2.0*(quat_multiply(
+                gt_state.block(1,0,4,1),
+                Inv(est_state.block(0,0,4,1))
         )).block(0,0,3,1).norm();
         double pose = (est_state.block(4,0,3,1)-gt_state.block(5,0,3,1)).norm();
 
@@ -202,6 +236,23 @@ int main(int argc, char** argv)
         posetemp.pose.position.z = gt_state(7);
         poses_gtimu.push_back(posetemp);
 
+        // Write this pose to the gt trajectory file if open
+        // GT: [time(sec),q_GtoI,p_IinG,v_IinG,b_gyro,b_accel]
+        // CSV: (time(ns),px,py,pz,qw,qx,qy,qz,vx,vy,vz,bwx,bwy,bwz,bax,bay,baz)
+        if(of_state.is_open()) {
+            of_state << std::setprecision(20) << std::floor(1e9*times.at(i)) << ","
+                     << std::setprecision(6)
+                     << gt_state(5) << ","<< gt_state(6) << ","<< gt_state(7) << ","
+                     << gt_state(4) << "," << gt_state(1) << "," << gt_state(2) << "," << gt_state(3) << ","
+                     << gt_state(8) << "," << gt_state(9) << "," << gt_state(10) << ","
+                     << gt_state(11) << "," << gt_state(12) << "," << gt_state(13) << ","
+                     << gt_state(14) << "," << gt_state(15) << "," << gt_state(16) << std::endl;
+        }
+    }
+
+    // Close the groundtruth trajectory file if open
+    if(of_state.is_open()) {
+        of_state.close();
     }
 
     //===================================================================================

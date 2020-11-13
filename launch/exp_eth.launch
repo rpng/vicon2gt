@@ -27,7 +27,6 @@
         <param name="stats_path_states"  type="string" value="$(arg folder)/vicon2gt/$(arg dataset)_vicon2gt_states.csv" />
         <param name="stats_path_info"    type="string" value="$(arg folder)/vicon2gt/$(arg dataset)_vicon2gt_info.txt" />
 
-
         <!-- world parameters -->
         <rosparam param="grav_inV">[0.0,0.0,9.807]</rosparam>
         <rosparam param="R_BtoI">[0.337977, 0.000209931, 0.941155, 0.0261378, -0.999616, -0.00916333, 0.940792, 0.0276967, -0.337852]</rosparam>

@@ -59,7 +59,7 @@ JPLNavState gtsam::JPLNavState::retract(const Vector15 &xi) const {
     Vector3 p = p_IinG + xi.block(12, 0, 3, 1);
 
     // Reconstruct and return this new state
-    return JPLNavState(q, bg, v, ba, p);
+    return JPLNavState(m_time, q, bg, v, ba, p);
 }
 
 

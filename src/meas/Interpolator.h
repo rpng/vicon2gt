@@ -63,25 +63,25 @@ public:
     // Default constuctor
     Interpolator() { }
 
-    // Our feed function for POSE measurements
+    /// Our feed function for POSE measurements
     void feed_pose(double timestamp, Eigen::Matrix<double,4,1> q, Eigen::Matrix<double,3,1> p,
                    Eigen::Matrix<double,3,3> R_q, Eigen::Matrix<double,3,3> R_p);
 
-    // Our feed function for ODOM measurements
+    /// Our feed function for ODOM measurements
     void feed_odom(double timestamp, Eigen::Matrix<double,4,1> q, Eigen::Matrix<double,3,1> p,
                    Eigen::Matrix<double,3,1> v, Eigen::Matrix<double,3,1> w,
                    Eigen::Matrix<double,3,3> R_q, Eigen::Matrix<double,3,3> R_p,
                    Eigen::Matrix<double,3,3> R_v, Eigen::Matrix<double,3,3> R_w);
 
-    // Given a timestamp, this will get the pose at that time
-    // If we don't have that pose in our vector, we will perform interpolation to get it
+    /// Given a timestamp, this will get the pose at that time
+    /// If we don't have that pose in our vector, we will perform interpolation to get it
     bool get_pose(double timestamp, Eigen::Matrix<double,4,1>& q, Eigen::Matrix<double,3,1>& p, Eigen::Matrix<double,6,6>& R);
 
-    // Given a timestamp, this will get the pose at that time
-    // If we don't have that pose in our vector, we will perform interpolation to get it
+    /// Given a timestamp, this will get the pose at that time
+    /// If we don't have that pose in our vector, we will perform interpolation to get it
     bool get_pose_with_jacobian(double timestamp, Eigen::Matrix<double,4,1>& q, Eigen::Matrix<double,3,1>& p, Eigen::Matrix<double,6,6>& R, Eigen::Matrix<double,6,1>& H_toff);
 
-    // Given a timestamp, this will find the bounding poses for them
+    /// Given a timestamp, this will find the bounding poses for them
     bool get_bounds(double timestamp,
             double &time0, Eigen::Matrix<double,4,1>& q0, Eigen::Matrix<double,3,1>& p0, Eigen::Matrix<double,6,6>& R0,
             double &time1, Eigen::Matrix<double,4,1>& q1, Eigen::Matrix<double,3,1>& p1, Eigen::Matrix<double,6,6>& R1);
