@@ -66,9 +66,9 @@ list(APPEND thirdparty_libraries
 add_library(vicon2gt_lib SHARED
     src/gtsam/JPLNavState.cpp
     src/gtsam/JPLQuaternion.cpp
+    src/gtsam/RotationXY.cpp
     src/gtsam/ImuFactorCPIv1.cpp
     src/gtsam/MeasBased_ViconPoseTimeoffsetFactor.cpp
-    src/gtsam/MagnitudePrior.cpp
     src/meas/Interpolator.cpp
     src/meas/Propagator.cpp
     src/sim/BsplineSE3.cpp

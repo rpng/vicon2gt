@@ -28,6 +28,7 @@
 #define GTSAM_JPLNAVSTATE_H
 
 
+#include <iomanip>
 #include <Eigen/Eigen>
 #include <Eigen/Dense>
 #include <gtsam/base/Vector.h>
@@ -126,7 +127,8 @@ namespace gtsam {
         /// How this node gets printed in the ostream
         GTSAM_EXPORT
         friend std::ostream &operator<<(std::ostream &os, const JPLNavState& state) {
-            os << "m_time:[" << state.time() << "]'" << endl;
+            streamsize ss = os.precision();
+            os << "m_time:[" << std::setprecision(15) << state.time() << std::setprecision(ss)  << "]'" << endl;
             os << "q:[" << state.q()(0) << ", " << state.q()(1) << ", " << state.q()(2) << ", " << state.q()(3) << "]'" << endl;
             os << "bg:[" << state.bg()(0) << ", " << state.bg()(1) << ", " << state.bg()(2) << "]'" << endl;
             os << "v:[" << state.v()(0) << ", " << state.v()(1) << ", " << state.v()(2) << "]'" << endl;

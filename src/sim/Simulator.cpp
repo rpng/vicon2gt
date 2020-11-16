@@ -25,7 +25,7 @@
 
 
 
-Simulator::Simulator(SimulatorParams& params_) {
+Simulator::Simulator(const SimulatorParams& params_) {
 
 
     //===============================================================
@@ -33,20 +33,17 @@ Simulator::Simulator(SimulatorParams& params_) {
 
     // Generate a random extrinsic and time offset
     // These will be our groundtruth parameters!
+    this->params = params_;
     std::normal_distribution<double> w(0,1);
-    std::mt19937 r(params_.seed);
+    std::mt19937 r(params.seed);
     Eigen::Vector3d w_vec;
     w_vec << 0.1*w(r), 0.1*w(r), 0.1*w(r);
-    params_.R_BtoI = exp_so3(w_vec);
-    params_.p_BinI << 0.2*w(r), 0.2*w(r), 0.2*w(r);
-    params_.viconimu_dt = 0.05*w(r);
+    params.R_BtoI = exp_so3(w_vec);
+    params.p_BinI << 0.2*w(r), 0.2*w(r), 0.2*w(r);
+    params.viconimu_dt = 0.05*w(r);
 
-    // Use the same magnitude, but random gravity direction
-    double mag = params_.gravity.norm();
-    Eigen::Vector3d direction;
-    direction << 0.1*w(r), 0.1*w(r), 0.1*w(r);
-    direction.normalize();
-    params_.gravity = mag*direction;
+    // Random gravity and vicon frame alignment
+    params.R_GtoV = rot_y(0.1*M_PI*w(r))*rot_x(0.1*M_PI*w(r));
 
     //===============================================================
     //===============================================================
@@ -55,7 +52,6 @@ Simulator::Simulator(SimulatorParams& params_) {
     printf(CYAN "=======================================\n");
     printf(CYAN "VICON-INERTIAL SIMULATOR STARTING\n");
     printf(CYAN "=======================================\n");
-    this->params = params_;
     params.print_noise();
     params.print_state();
     params.print_simulation();
@@ -106,7 +102,7 @@ Simulator::Simulator(SimulatorParams& params_) {
 
 
 
-bool Simulator::get_state(double desired_time, Eigen::Matrix<double,17,1> &imustate) {
+bool Simulator::get_state_in_vicon(double desired_time, Eigen::Matrix<double,17,1> &imustate) {
 
     // Set to default state
     imustate.setZero();
@@ -142,9 +138,9 @@ bool Simulator::get_state(double desired_time, Eigen::Matrix<double,17,1> &imust
 
     // Finally lets create the current state
     imustate(0,0) = desired_time;
-    imustate.block(1,0,4,1) = rot_2_quat(R_GtoI);
-    imustate.block(5,0,3,1) = p_IinG;
-    imustate.block(8,0,3,1) = v_IinG;
+    imustate.block(1,0,4,1) = rot_2_quat(R_GtoI*params.R_GtoV.transpose());
+    imustate.block(5,0,3,1) = params.R_GtoV*p_IinG;
+    imustate.block(8,0,3,1) = params.R_GtoV*v_IinG;
     imustate.block(11,0,3,1) = true_bg_interp;
     imustate.block(14,0,3,1) = true_ba_interp;
     return true;
@@ -185,7 +181,8 @@ bool Simulator::get_next_imu(double &time_imu, Eigen::Vector3d &wm, Eigen::Vecto
 
     // Transform omega and linear acceleration into imu frame
     Eigen::Vector3d omega_inI = w_IinI;
-    Eigen::Vector3d accel_inI = R_GtoI*(a_IinG+params.gravity);
+    Eigen::Vector3d ez = {0,0,1};
+    Eigen::Vector3d accel_inI = R_GtoI*(a_IinG+params.gravity_magnitude*ez);
 
     // Now add noise to these measurements
     double dt = 1.0/params.sim_freq_imu;
@@ -233,7 +230,7 @@ bool Simulator::get_next_cam(double &time_camera) {
 
 }
 
-bool Simulator::get_next_vicon(double &time_vicon, Eigen::Vector4d &q_VtoB, Eigen::Vector3d &p_VinB) {
+bool Simulator::get_next_vicon(double &time_vicon, Eigen::Vector4d &q_VtoB, Eigen::Vector3d &p_BinV) {
 
 
     // Return if the camera measurement should go before us
@@ -261,18 +258,24 @@ bool Simulator::get_next_vicon(double &time_vicon, Eigen::Vector4d &q_VtoB, Eige
     Eigen::Matrix3d R_GtoB = params.R_BtoI.transpose()*R_GtoI;
     Eigen::Vector3d p_BinG = p_IinG + R_GtoI.transpose()*params.p_BinI;
 
+    // Rotate into the vicon frame from the inertial frame
+    // NOTE: for simulation we keep the gravity aligned frame fixed
+    // NOTE: while the vicon frame is changed, this allows for evaulation
+    // NOTE: of many runs with different vicon frames to be compared in the global gravity frame
+    // NOTE: ie. the groundtruth bspline trajectory is in the global inertial frame (not the vicon!!)
+    Eigen::Matrix3d tmp_R_VtoB = R_GtoB*params.R_GtoV.transpose();
+    Eigen::Vector3d tmp_p_BinV = params.R_GtoV*p_BinG;
+
     // Inject noise also flip the position direction
     std::normal_distribution<double> w(0,1);
     Eigen::Vector3d w_vec = Eigen::Vector3d::Zero();
     Eigen::Vector3d p_vec = Eigen::Vector3d::Zero();
     w_vec << params.sigma_vicon_pose(0)*w(gen_meas_vicon), params.sigma_vicon_pose(1)*w(gen_meas_vicon), params.sigma_vicon_pose(2)*w(gen_meas_vicon);
     p_vec << params.sigma_vicon_pose(3)*w(gen_meas_vicon), params.sigma_vicon_pose(4)*w(gen_meas_vicon), params.sigma_vicon_pose(5)*w(gen_meas_vicon);
-    Eigen::Matrix3d R_VtoB_meas = exp_so3(w_vec)*R_GtoB;
-    Eigen::Vector3d p_GinB_meas = p_BinG + p_vec;
 
     // Set our measurement
-    q_VtoB = rot_2_quat(R_VtoB_meas);
-    p_VinB = p_GinB_meas;
+    q_VtoB = rot_2_quat(exp_so3(w_vec)*tmp_R_VtoB);
+    p_BinV = tmp_p_BinV + p_vec;
 
     // Return success
     return true;

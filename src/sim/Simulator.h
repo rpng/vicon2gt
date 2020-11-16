@@ -37,6 +37,8 @@
 #include "sim/BsplineSE3.h"
 #include "sim/SimulatorParams.h"
 #include "utils/colors.h"
+#include "utils/quat_ops.h"
+#include "utils/rpy_ops.h"
 
 
 /**
@@ -56,7 +58,7 @@ public:
      * @brief Default constructor, will load all configuration variables
      * @param params_ SimulationParams parameters. Should have already been loaded from cmd.
      */
-    Simulator(SimulatorParams& params_);
+    Simulator(const SimulatorParams& params_);
 
     /**
      * @brief Returns if we are actively simulating
@@ -67,12 +69,19 @@ public:
     }
 
     /**
+     * @brief Returns simulator parameters
+     */
+    SimulatorParams get_params() {
+        return params;
+    }
+
+    /**
      * @brief Get the simulation state at a specified timestep
      * @param desired_time Timestamp we want to get the state at
-     * @param imustate State in the MSCKF ordering: [time(sec),q_GtoI,p_IinG,v_IinG,b_gyro,b_accel]
+     * @param imustate State in the MSCKF ordering: [time(sec),q_VtoI,p_IinV,v_IinV,b_gyro,b_accel]
      * @return True if we have a state
      */
-    bool get_state(double desired_time, Eigen::Matrix<double,17,1> &imustate);
+    bool get_state_in_vicon(double desired_time, Eigen::Matrix<double,17,1> &imustate);
 
     /**
      * @brief Gets the next IMU reading if we have one.
@@ -94,10 +103,10 @@ public:
      * @brief Gets the next VICON reading if we have one.
      * @param time_vicon Time that this measurement occurred at
      * @param q_VtoB Rotation from vicon frame to the vicon marker body frame
-     * @param p_VinB Position of vicon frame in vicon marker body frame
+     * @param p_BinV Position of vicon marker body frame in vicon frame
      * @return True if we have a measurement
      */
-    bool get_next_vicon(double &time_vicon, Eigen::Vector4d &q_VtoB, Eigen::Vector3d &p_VinB);
+    bool get_next_vicon(double &time_vicon, Eigen::Vector4d &q_VtoB, Eigen::Vector3d &p_BinV);
 
 
 protected:

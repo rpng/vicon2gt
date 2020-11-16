@@ -32,6 +32,7 @@
 
 #include "utils/colors.h"
 #include "utils/quat_ops.h"
+#include "utils/rpy_ops.h"
 
 
 using namespace std;
@@ -76,8 +77,11 @@ struct SimulatorParams {
 
     // STATE DEFAULTS ==========================
 
-    /// Gravity in the global frame (i.e. should be [0, 0, 9.81] typically)
-    Eigen::Vector3d gravity = {0.0, 0.0, 9.81};
+    /// Gravity magnitude in the global frame (i.e. 9.81)
+    double gravity_magnitude = 9.81;
+
+    /// Rotation between vicon and gravity aligned frame (roll and pitch)
+    Eigen::Matrix3d R_GtoV = Eigen::Matrix3d::Identity();
 
     /// Time offset between vicon and IMU.
     double viconimu_dt = 0.0;
@@ -94,7 +98,9 @@ struct SimulatorParams {
      */
     void print_state() {
         printf(CYAN "STATE PARAMETERS:\n");
-        printf(CYAN "\t- gravity: %.3f, %.3f, %.3f\n", gravity(0), gravity(1), gravity(2));
+        printf(CYAN "\t- gravity: %.3f\n", gravity_magnitude);
+        Eigen::Vector3d rpy = rot2rpy(R_GtoV);
+        printf(CYAN "\t- R_GtoV rpy: %.4f, %.4f, %.4f\n", rpy(0), rpy(1), rpy(2));
         printf(CYAN "\t- viconimu_dt: %.4f\n", viconimu_dt);
         Eigen::Vector4d q_BtoI = rot_2_quat(R_BtoI);
         printf(CYAN "\t- q_BtoI: %.3f, %.3f, %.3f, %.3f\n", q_BtoI(0), q_BtoI(1), q_BtoI(2), q_BtoI(3));

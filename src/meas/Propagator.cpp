@@ -53,7 +53,7 @@ bool Propagator::propagate(double time0, double time1, Eigen::Matrix<double,3,1>
 
 
     // First lets construct an IMU vector of measurements we need
-    vector<IMUDATA> prop_data;
+    std::vector<IMUDATA> prop_data;
 
     // Ensure we have some measurements in the first place!
     if(imu_data.empty()) {

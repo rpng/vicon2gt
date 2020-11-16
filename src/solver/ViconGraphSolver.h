@@ -47,9 +47,9 @@
 #include "gtsam/GtsamConfig.h"
 #include "gtsam/JPLNavState.h"
 #include "gtsam/JPLQuaternion.h"
+#include "gtsam/RotationXY.h"
 #include "gtsam/MeasBased_ViconPoseTimeoffsetFactor.h"
 #include "gtsam/ImuFactorCPIv1.h"
-#include "gtsam/MagnitudePrior.h"
 #include "meas/Propagator.h"
 #include "meas/Interpolator.h"
 #include "utils/quat_ops.h"
@@ -65,7 +65,7 @@ using namespace gtsam;
 
 using gtsam::symbol_shorthand::X; // X: our JPL states
 using gtsam::symbol_shorthand::C; // C: calibration (c(0)=rot, c(1)=pos)
-using gtsam::symbol_shorthand::G; // G: global gravity in the vicon frame
+using gtsam::symbol_shorthand::G; // G: global gravity rotation into the vicon frame
 using gtsam::symbol_shorthand::T; // T: time offset between vicon and imu sensors
 
 
@@ -118,11 +118,11 @@ public:
     /**
      * @brief Gets other calibration parameters we estimate online
      * @param toff Time offset between vicon and IMU
-     * @param R Rotation between vicon and IMU
-     * @param p Position between vicon and IMU
-     * @param g Gravity in the vicon frame
+     * @param R_BtoI Rotation between vicon and IMU
+     * @param p_BinI Position between vicon and IMU
+     * @param R_GtoV Rotation from gravity aligned to vicon frame
      */
-    void get_calibration(double &toff, Eigen::Matrix3d &R, Eigen::Vector3d &p, Eigen::Vector3d &g);
+    void get_calibration(double &toff, Eigen::Matrix3d &R_BtoI, Eigen::Vector3d &p_BinI, Eigen::Matrix3d &R_GtoV);
 
 
 protected:
@@ -154,10 +154,13 @@ protected:
     std::vector<double> timestamp_cameras;
 
     // Initial estimates of our variables
-    Eigen::Matrix<double,3,1> init_grav_inV;
+    Eigen::Matrix<double,3,3> init_R_GtoV;
     Eigen::Matrix<double,3,3> init_R_BtoI;
     Eigen::Matrix<double,3,1> init_p_BinI;
     double init_toff_imu_to_vicon;
+
+    // We do not optimize the gravity magnitude
+    double gravity_magnitude;
 
     // Master non-linear GTSAM graph, all created factors
     // Also have all nodes in the graph
@@ -172,9 +175,6 @@ protected:
 
     // Map between state timestamp and their IDs
     std::map<double,size_t> map_states;
-
-    // If we should enforce gravity magnitude
-    bool enforce_grav_mag;
 
     // Number of times we will loop and relinearize the measurements
     int num_loop_relin;

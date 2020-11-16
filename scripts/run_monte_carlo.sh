@@ -47,7 +47,7 @@ filename3="$save_path1/$run_name/simulation/${j}_states.txt"
 filename4="$save_path2/simulation.txt"
 
 # run our ROS launch file (note we send console output to terminator)
-roslaunch vicon2gt sim.launch save2file:=true stats_path_states:=$filename1 stats_path_gt:=$filename2 seed:=$j vicon_sigmas:="[${noises[h]},${noises[h]},${noises[h]},${noises[i]},${noises[i]},${noises[i]}]" &> /dev/null
+roslaunch vicon2gt sim.launch save2file:=true stats_path_states:=$filename1 stats_path_gt:=$filename2 seed:=$((10#$j)) vicon_sigmas:="[${noises[h]},${noises[h]},${noises[h]},${noises[i]},${noises[i]},${noises[i]}]" &> /dev/null
 
 # print out the time elapsed
 end_time="$(date -u +%s)"

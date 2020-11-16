@@ -1,7 +1,8 @@
 /**
  * MIT License
- * Copyright (c) 2020 Patrick Geneva @ University of Delaware (Robot Perception & Navigation Group)
- * Copyright (c) 2020 Guoquan Huang @ University of Delaware (Robot Perception & Navigation Group)
+ * Copyright (c) 2018 Patrick Geneva @ University of Delaware (Robot Perception & Navigation Group)
+ * Copyright (c) 2018 Kevin Eckenhoff @ University of Delaware (Robot Perception & Navigation Group)
+ * Copyright (c) 2018 Guoquan Huang @ University of Delaware (Robot Perception & Navigation Group)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,31 +24,35 @@
  */
 
 
-#include "MagnitudePrior.h"
+#include "RotationXY.h"
 
 
 using namespace std;
 using namespace gtsam;
 
 
-/**
- * Called on when optimizing to get the error of this measurement
- */
-gtsam::Vector MagnitudePrior::evaluateError(const Vector3& vec, boost::optional<Matrix&> H1) const {
 
-    // Our error vector (just a scalar)
-    Vector1 error;
-    error(0,0) = vec.norm()-m_mag;
+RotationXY gtsam::RotationXY::retract(const Vector2 &xi) const {
 
-    // Compute the Jacobian in respect to the vector
-    if(H1) {
-        Eigen::MatrixXd H = vec.transpose()/vec.norm();
-        *H1 = *OptionalJacobian<Eigen::Dynamic,Eigen::Dynamic>(H);
-    }
+    // Calculate the update theta x y values
+    // NOTE: we should probably wrap these values?
+    // NOTE: but doesn't matter that much since we are just using them in a sin/cos
+    double theta_new_x = wrap2pi(theta_x + xi(0));
+    double theta_new_y = wrap2pi(theta_y + xi(1));
 
-    // Finally return our error vector!
-    return error;
+    // Reconstruct and return this new state
+    return RotationXY(theta_new_x, theta_new_y);
+
 }
+
+
+Vector2 gtsam::RotationXY::localCoordinates(const RotationXY &state) const {
+    Vector2 vec;
+    vec(0) = theta_x;
+    vec(1) = theta_y;
+    return vec;
+}
+
 
 
 

@@ -31,9 +31,13 @@
 #include <gtsam/nonlinear/NonlinearFactor.h>
 
 #include "JPLNavState.h"
+#include "RotationXY.h"
 #include "utils/quat_ops.h"
 
+
 using namespace gtsam;
+
+
 
 namespace gtsam {
 
@@ -53,7 +57,7 @@ namespace gtsam {
      * > Authors: Kevin Eckenhoff, Patrick Geneva, and Guoquan Huang
      * > http://udel.edu/~ghuang/papers/tr_cpi.pdf
      */
-    class ImuFactorCPIv1 : public NoiseModelFactor3<JPLNavState, JPLNavState, Vector3> {
+    class ImuFactorCPIv1 : public NoiseModelFactor3<JPLNavState, JPLNavState, RotationXY> {
     private:
 
         Vector3 alpha; ///< preintegration measurement due to position
@@ -71,15 +75,16 @@ namespace gtsam {
         Eigen::Matrix<double,3,3> H_alpha; ///<  jacobian of the preintegrated position in respect to the accelerometer bias correction
 
         double deltatime; ///< time in seconds that this measurement is over
+        double gravity_magnitude; ///< global gravity magnitude (should be the same for all measurements)
 
     public:
 
         /// Construct from the two linking JPLNavStates, preingration measurement, and its covariance
-        ImuFactorCPIv1(Key state_i, Key state_j, Key grav, Eigen::Matrix<double,15,15> covariance, double deltatime,
-                       Vector3 alpha, Vector3 beta, Vector4 q_KtoK1, Bias3 ba_lin, Bias3 bg_lin,
+        ImuFactorCPIv1(Key state_i, Key state_j, Key rotxy, Eigen::Matrix<double,15,15> covariance, double deltatime,
+                       double grav_m, Vector3 alpha, Vector3 beta, Vector4 q_KtoK1, Bias3 ba_lin, Bias3 bg_lin,
                        Eigen::Matrix<double,3,3> J_q, Eigen::Matrix<double,3,3> J_beta, Eigen::Matrix<double,3,3> J_alpha,
                        Eigen::Matrix<double,3,3> H_beta, Eigen::Matrix<double,3,3> H_alpha) :
-                NoiseModelFactor3<JPLNavState, JPLNavState, Vector3>(noiseModel::Gaussian::Covariance(covariance), state_i, state_j, grav) {
+                NoiseModelFactor3<JPLNavState, JPLNavState, RotationXY>(noiseModel::Gaussian::Covariance(covariance), state_i, state_j, rotxy) {
 
             // Measurement
             this->alpha = alpha;
@@ -95,6 +100,7 @@ namespace gtsam {
             this->H_alpha = H_alpha;
             // Static values
             this->deltatime = deltatime;
+            this->gravity_magnitude = grav_m;
 
         }
 
@@ -130,7 +136,7 @@ namespace gtsam {
 
 
         /// Error function. Given the current states, calculate the measurement error/residual
-        gtsam::Vector evaluateError(const JPLNavState& state_i, const JPLNavState& state_j, const Vector3& gravity,
+        gtsam::Vector evaluateError(const JPLNavState& state_i, const JPLNavState& state_j, const RotationXY& gravity,
                                     boost::optional<Matrix&> H1 = boost::none, boost::optional<Matrix&> H2 = boost::none,
                                     boost::optional<Matrix&> H3 = boost::none) const;
 
@@ -160,7 +166,7 @@ namespace gtsam {
             const auto *e =  dynamic_cast<const ImuFactorCPIv1*>(&expected);
             if(e == nullptr) return false;
             // Success, compare base noise values and the measurement values
-            return NoiseModelFactor3<JPLNavState,JPLNavState,Vector3>::equals(*e, tol)
+            return NoiseModelFactor3<JPLNavState,JPLNavState,RotationXY>::equals(*e, tol)
                    && gtsam::equal(deltatime, e->deltatime, tol)
                    && gtsam::equal(alpha, e->alpha, tol)
                    && gtsam::equal(beta, e->beta, tol)

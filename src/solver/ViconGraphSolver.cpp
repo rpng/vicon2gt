@@ -42,11 +42,16 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagat
     this->graph = new gtsam::NonlinearFactorGraph();
     this->config = std::make_shared<GtsamConfig>();
 
-    // Load gravity in vicon frame
-    std::vector<double> vec_gravity;
-    std::vector<double> vec_gravity_default = {0.0,0.0,9.81};
-    nh.param<std::vector<double>>("grav_inV", vec_gravity, vec_gravity_default);
-    init_grav_inV << vec_gravity.at(0),vec_gravity.at(1),vec_gravity.at(2);
+    // Load gravity rotation into vicon frame
+    std::vector<double> R_GtoV;
+    std::vector<double> R_GtoV_default = {1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0};
+    nh.param<std::vector<double>>("R_GtoV", R_GtoV, R_GtoV_default);
+    init_R_GtoV << R_GtoV.at(0),R_GtoV.at(1),R_GtoV.at(2),
+            R_GtoV.at(3),R_GtoV.at(4),R_GtoV.at(5),
+            R_GtoV.at(6),R_GtoV.at(7),R_GtoV.at(8);
+
+    // Load gravity magnitude
+    nh.param<double>("gravity_magnitude", gravity_magnitude, 9.81);
 
     // Load transform between vicon body frame to the IMU
     std::vector<double> R_BtoI;
@@ -65,7 +70,7 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagat
     nh.param<double>("toff_imu_to_vicon", init_toff_imu_to_vicon, 0.0);
 
     // Debug print to console
-    cout << "init_grav_inV:" << endl << init_grav_inV.transpose() << endl;
+    cout << "init_R_GtoV:" << endl << init_R_GtoV << endl;
     cout << "init_R_BtoI:" << endl << init_R_BtoI << endl;
     cout << "init_p_BinI:" << endl << init_p_BinI.transpose() << endl;
     cout << "init_toff_imu_to_vicon:" << endl << init_toff_imu_to_vicon << endl;
@@ -73,9 +78,6 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagat
     // ================================================================================================
     // ================================================================================================
     // ================================================================================================
-
-    // See if we should enforce gravity
-    nh.param<bool>("enforce_grav_mag", enforce_grav_mag, false);
 
     // See if we should estimate time offset
     nh.param<bool>("estimate_toff_vicon_to_imu", config->estimate_vicon_imu_toff, config->estimate_vicon_imu_toff);
@@ -86,7 +88,6 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagat
     nh.param<int>("num_loop_relin", num_loop_relin, 0);
 
     // Nice debug print
-    cout << "enforce_grav_mag: " << (int)enforce_grav_mag << endl;
     cout << "estimate_toff_vicon_to_imu: " << (int)config->estimate_vicon_imu_toff << endl;
     cout << "estimate_ori_vicon_to_imu: " << (int)config->estimate_vicon_imu_ori << endl;
     cout << "estimate_pos_vicon_to_imu: " << (int)config->estimate_vicon_imu_pos << endl;
@@ -170,8 +171,7 @@ void ViconGraphSolver::build_and_solve() {
     cout << "state_N: " << endl << values_result.at<JPLNavState>(X(map_states[timestamp_cameras.at(timestamp_cameras.size()-1)])) << endl;
     cout << "R_BtoI: " << endl << quat_2_Rot(values_result.at<JPLQuaternion>(C(0)).q()) << endl << endl;
     cout << "p_BinI: " << endl << values_result.at<Vector3>(C(1)) << endl << endl;
-    cout << "gravity: " << endl << values_result.at<Vector3>(G(0)) << endl << endl;
-    cout << "gravity norm: " << endl << values_result.at<Vector3>(G(0)).norm() << endl << endl;
+    cout << "R_GtoV: " << endl << values_result.at<RotationXY>(G(0)).rot() << endl << endl;
     cout << "t_off_vicon_to_imu: " << endl << values_result.at<Vector1>(T(0)) << endl << endl;
     cout << "======================================" << endl << endl;
 
@@ -206,20 +206,24 @@ void ViconGraphSolver::write_to_file(std::string csvfilepath, std::string infofi
     of_state << "#time(ns),px,py,pz,qw,qx,qy,qz,vx,vy,vz,bwx,bwy,bwz,bax,bay,baz" << std::endl;
 
     // Loop through all states, and
+    Eigen::Matrix3d R_GtoV = values_result.at<RotationXY>(G(0)).rot();
+    Eigen::Vector4d q_GtoV = rot_2_quat(R_GtoV);
     for(size_t i=0; i<timestamp_cameras.size(); i++) {
-        // get this state at this timestep
+        // get this state at this timestep rotated into gravity aligned frame
         JPLNavState state = values_result.at<JPLNavState>(X(map_states[timestamp_cameras.at(i)]));
+        Eigen::Vector4d q_GtoIi = quat_multiply(state.q(),q_GtoV);
+        Eigen::Vector3d p_IiinG = R_GtoV.transpose()*state.p();
+        Eigen::Vector3d v_IiinG = R_GtoV.transpose()*state.v();
         // export to file (time(ns),px,py,pz,qw,qx,qy,qz,vx,vy,vz,bwx,bwy,bwz,bax,bay,baz)
         of_state << std::setprecision(20) << std::floor(1e9*timestamp_cameras.at(i)) << ","
                  << std::setprecision(6)
-                 << state.p()(0,0) << ","<< state.p()(1,0) << ","<< state.p()(2,0) << ","
-                 << state.q()(3,0) << "," << state.q()(0,0) << "," << state.q()(1,0) << "," << state.q()(2,0) << ","
-                 << state.v()(0,0) << "," << state.v()(1,0) << "," << state.v()(2,0) << ","
-                 << state.bg()(0,0) << "," << state.bg()(1,0) << "," << state.bg()(2,0) << ","
-                 << state.ba()(0,0) << "," << state.ba()(1,0) << "," << state.ba()(2,0) << std::endl;
+                 << p_IiinG(0) << ","<< p_IiinG(1) << ","<< p_IiinG(2) << ","
+                 << q_GtoIi(3) << "," << q_GtoIi(0) << "," << q_GtoIi(1) << "," << q_GtoIi(2) << ","
+                 << v_IiinG(0) << ","<< v_IiinG(1) << ","<< v_IiinG(2) << ","
+                 << state.bg()(0) << "," << state.bg()(1) << "," << state.bg()(2) << ","
+                 << state.ba()(0) << "," << state.ba()(1) << "," << state.ba()(2) << std::endl;
     }
     of_state.close();
-
 
     // Save calibration and the such to file
     std::ofstream of_info;
@@ -227,8 +231,10 @@ void ViconGraphSolver::write_to_file(std::string csvfilepath, std::string infofi
     of_info << "R_BtoI: " << endl << quat_2_Rot(values_result.at<JPLQuaternion>(C(0)).q()) << endl << endl ;
     of_info << "q_BtoI: " << endl << values_result.at<JPLQuaternion>(C(0)).q() << endl << endl;
     of_info << "p_BinI: " << endl << values_result.at<Vector3>(C(1)) << endl << endl;
-    of_info << "gravity: " << endl << values_result.at<Vector3>(G(0)) << endl << endl;
-    of_info << "gravity norm: " << endl << values_result.at<Vector3>(G(0)).norm() << endl << endl;
+    of_info << "R_GtoV: " << endl << values_result.at<RotationXY>(G(0)).rot() << endl << endl;
+    of_info << "R_GtoV (thetax, thetay): " << endl;
+    of_info << values_result.at<RotationXY>(G(0)).thetax() << " " << values_result.at<RotationXY>(G(0)).thetax() << endl << endl;
+    of_info << "gravity norm: " << endl << gravity_magnitude << endl << endl;
     of_info << "t_off_vicon_to_imu: " << endl << values_result.at<Vector1>(T(0)) << endl << endl;
     of_info.close();
 
@@ -251,7 +257,7 @@ void ViconGraphSolver::visualize() {
         // Create the pose
         geometry_msgs::PoseStamped posetemp;
         posetemp.header.stamp = ros::Time(timestamp_cameras.at(i));
-        posetemp.header.frame_id = "global";
+        posetemp.header.frame_id = "vicon";
         posetemp.pose.orientation.x = state.q()(0);
         posetemp.pose.orientation.y = state.q()(1);
         posetemp.pose.orientation.z = state.q()(2);
@@ -267,7 +273,7 @@ void ViconGraphSolver::visualize() {
     // NOTE: https://github.com/ros-visualization/rviz/issues/1107
     nav_msgs::Path arrIMU;
     arrIMU.header.stamp = ros::Time::now();
-    arrIMU.header.frame_id = "global";
+    arrIMU.header.frame_id = "vicon";
     for(size_t i=0; i<poses_imu.size(); i+=std::floor(poses_imu.size()/16384.0)+1) {
         arrIMU.poses.push_back(poses_imu.at(i));
     }
@@ -297,7 +303,7 @@ void ViconGraphSolver::visualize() {
         // Create the pose
         geometry_msgs::PoseStamped posetemp;
         posetemp.header.stamp = ros::Time(timestamp_cameras.at(i));
-        posetemp.header.frame_id = "global";
+        posetemp.header.frame_id = "vicon";
         posetemp.pose.orientation.x = q_VtoI(0);
         posetemp.pose.orientation.y = q_VtoI(1);
         posetemp.pose.orientation.z = q_VtoI(2);
@@ -314,7 +320,7 @@ void ViconGraphSolver::visualize() {
     // NOTE: https://github.com/ros-visualization/rviz/issues/1107
     nav_msgs::Path arrVICON;
     arrVICON.header.stamp = ros::Time::now();
-    arrVICON.header.frame_id = "global";
+    arrVICON.header.frame_id = "vicon";
     for(size_t i=0; i<poses_vicon.size(); i+=std::floor(poses_imu.size()/16384.0)+1) {
         arrVICON.poses.push_back(poses_vicon.at(i));
     }
@@ -347,14 +353,14 @@ void ViconGraphSolver::get_imu_poses(std::vector<double> &times, std::vector<Eig
 }
 
 
-void ViconGraphSolver::get_calibration(double &toff, Eigen::Matrix3d &R, Eigen::Vector3d &p, Eigen::Vector3d &g) {
+void ViconGraphSolver::get_calibration(double &toff, Eigen::Matrix3d &R_BtoI, Eigen::Vector3d &p_BinI, Eigen::Matrix3d &R_GtoV) {
 
     // Get vicon marker body to imu calibration
-    R = quat_2_Rot(values_result.at<JPLQuaternion>(C(0)).q());
-    p = values_result.at<Vector3>(C(1));
+    R_BtoI = quat_2_Rot(values_result.at<JPLQuaternion>(C(0)).q());
+    p_BinI = values_result.at<Vector3>(C(1));
 
-    // Gravity in local frame
-    g = values_result.at<Vector3>(G(0));
+    // Rotation from gravity frame to vicon frame
+    R_GtoV = values_result.at<RotationXY>(G(0)).rot();
 
     // Time offset betwen vicon and imu
     toff = values_result.at<Vector1>(T(0)).matrix()(0);
@@ -372,11 +378,15 @@ void ViconGraphSolver::build_problem(bool init_states) {
     graph->erase(graph->begin(), graph->end());
 
     // Create gravity and calibration nodes and insert them
+    // TODO: READ IN ROTATION FROM LAUNCH FILE!@#!@#!@#!#!#!@#!@#
+    // TODO: READ IN ROTATION FROM LAUNCH FILE!@#!@#!@#!#!#!@#!@#
     if(init_states) {
         values.insert(C(0), JPLQuaternion(rot_2_quat(init_R_BtoI)));
         values.insert(C(1), Vector3(init_p_BinI));
-        values.insert(G(0), Vector3(init_grav_inV));
+        Eigen::Vector3d rpy = rot2rpy(init_R_GtoV);
+        values.insert(G(0), RotationXY(rpy(0),rpy(1)));
     }
+    ROS_INFO("[BUILD]: initial R_GtoV roll pitch %.4f, %.4f", values.at<RotationXY>(G(0)).thetax(), values.at<RotationXY>(G(0)).thetay());
 
     // If estimating the timeoffset logic
     if(init_states) {
@@ -385,20 +395,11 @@ void ViconGraphSolver::build_problem(bool init_states) {
         values.insert(T(0), temp);
     }
     // Prior to make time offset stable
-    Vector1 sigma;
-    sigma(0,0) = 0.02; // seconds
-    PriorFactor<Vector1> factor_timemag(T(0), values.at<Vector1>(T(0)), sigma);
-    graph->add(factor_timemag);
+    //Vector1 sigma;
+    //sigma(0,0) = 0.02; // seconds
+    //PriorFactor<Vector1> factor_timemag(T(0), values.at<Vector1>(T(0)), sigma);
+    //graph->add(factor_timemag);
     ROS_INFO("[BUILD]: current time offset is %.4f", values.at<Vector1>(T(0))(0));
-
-    // If enforcing gravity magnitude, then add that prior factor here
-    if(enforce_grav_mag) {
-        Vector1 sigma;
-        sigma(0,0) = 1e-3;
-        MagnitudePrior factor_gav(G(0),sigma,init_grav_inV.norm());
-        graph->add(factor_gav);
-    }
-    ROS_INFO("[BUILD]: current gravity mag is %.4f", values.at<Vector3>(G(0)).norm());
 
     // Loop through each camera time and construct the graph
     auto it1 = timestamp_cameras.begin();
@@ -494,7 +495,8 @@ void ViconGraphSolver::build_problem(bool init_states) {
         // Now create the IMU factor
         ImuFactorCPIv1 factor_imu(
                 X(map_states[time0]),X(map_states[time1]),G(0),
-                preint.P_meas,preint.DT,preint.alpha_tau,preint.beta_tau,
+                preint.P_meas,preint.DT,gravity_magnitude,
+                preint.alpha_tau,preint.beta_tau,
                 preint.q_k2tau,
                 preint.b_a_lin,preint.b_w_lin,
                 preint.J_q,preint.J_b,preint.J_a,

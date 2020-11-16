@@ -99,11 +99,8 @@ int main(int argc, char** argv)
     params.sigma_vicon_pose << viconsigmas.at(0), viconsigmas.at(1), viconsigmas.at(2),
             viconsigmas.at(3), viconsigmas.at(4), viconsigmas.at(5);
 
-    // Load gravity in vicon frame
-    std::vector<double> vec_gravity;
-    std::vector<double> vec_gravity_default = {0.0,0.0,9.8};
-    nh.param<std::vector<double>>("grav_inV", vec_gravity, vec_gravity_default);
-    params.gravity << vec_gravity.at(0),vec_gravity.at(1),vec_gravity.at(2);
+    // Load gravity magnitude
+    nh.param<double>("gravity_magnitude", params.gravity_magnitude, 9.81);
 
     //===================================================================================
     //===================================================================================
@@ -143,9 +140,9 @@ int main(int argc, char** argv)
         // VICON: get the next simulated camera uv measurements if we have them
         double time_vicon;
         Eigen::Vector4d q_VtoB;
-        Eigen::Vector3d p_VinB;
-        if (sim->get_next_vicon(time_vicon, q_VtoB, p_VinB)) {
-            interpolator->feed_pose(time_vicon,q_VtoB,p_VinB,R_q,R_p);
+        Eigen::Vector3d p_BinV;
+        if (sim->get_next_vicon(time_vicon, q_VtoB, p_BinV)) {
+            interpolator->feed_pose(time_vicon,q_VtoB,p_BinV,R_q,R_p);
             ct_vic++;
         }
 
@@ -201,10 +198,10 @@ int main(int argc, char** argv)
     for(size_t i=0; i<times.size(); i++) {
 
         // get the states
-        // GT: [time(sec),q_GtoI,p_IinG,v_IinG,b_gyro,b_accel]
-        // EST: [q_GtoI,p_IinG]
+        // GT: [time(sec),q_VtoI,p_IinV,v_IinV,b_gyro,b_accel]
+        // EST: [q_VtoI,p_IinV]
         Eigen::Matrix<double,17,1> gt_state;
-        sim->get_state(times.at(i), gt_state);
+        sim->get_state_in_vicon(times.at(i), gt_state);
         Eigen::Matrix<double,7,1> est_state = poses.at(i);
 
         // compute error
@@ -226,7 +223,7 @@ int main(int argc, char** argv)
         // Create the ROS pose for visualization
         geometry_msgs::PoseStamped posetemp;
         posetemp.header.stamp = ros::Time(times.at(i));
-        posetemp.header.frame_id = "global";
+        posetemp.header.frame_id = "vicon";
         posetemp.pose.orientation.x = gt_state(1);
         posetemp.pose.orientation.y = gt_state(2);
         posetemp.pose.orientation.z = gt_state(3);
@@ -240,11 +237,15 @@ int main(int argc, char** argv)
         // GT: [time(sec),q_GtoI,p_IinG,v_IinG,b_gyro,b_accel]
         // CSV: (time(ns),px,py,pz,qw,qx,qy,qz,vx,vy,vz,bwx,bwy,bwz,bax,bay,baz)
         if(of_state.is_open()) {
+            Eigen::Vector4d q_GtoV = rot_2_quat(sim->get_params().R_GtoV);
+            Eigen::Vector4d q_GtoIi = quat_multiply(gt_state.block(1,0,4,1),q_GtoV);
+            Eigen::Vector3d p_IiinG = sim->get_params().R_GtoV.transpose()*gt_state.block(5,0,3,1);
+            Eigen::Vector3d v_IiinG = sim->get_params().R_GtoV.transpose()*gt_state.block(8,0,3,1);
             of_state << std::setprecision(20) << std::floor(1e9*times.at(i)) << ","
                      << std::setprecision(6)
-                     << gt_state(5) << ","<< gt_state(6) << ","<< gt_state(7) << ","
-                     << gt_state(4) << "," << gt_state(1) << "," << gt_state(2) << "," << gt_state(3) << ","
-                     << gt_state(8) << "," << gt_state(9) << "," << gt_state(10) << ","
+                     << p_IiinG(0) << "," << p_IiinG(1) << "," << p_IiinG(2) << ","
+                     << q_GtoIi(3) << "," << q_GtoIi(0) << "," << q_GtoIi(1) << "," << q_GtoIi(2) << ","
+                     << v_IiinG(0) << "," << v_IiinG(1) << "," << v_IiinG(2) << ","
                      << gt_state(11) << "," << gt_state(12) << "," << gt_state(13) << ","
                      << gt_state(14) << "," << gt_state(15) << "," << gt_state(16) << std::endl;
         }
@@ -267,7 +268,7 @@ int main(int argc, char** argv)
     // NOTE: https://github.com/ros-visualization/rviz/issues/1107
     nav_msgs::Path arrVICON;
     arrVICON.header.stamp = ros::Time::now();
-    arrVICON.header.frame_id = "global";
+    arrVICON.header.frame_id = "vicon";
     for(size_t i=0; i<poses_gtimu.size(); i+=std::floor(poses_gtimu.size()/16384.0)+1) {
         arrVICON.poses.push_back(poses_gtimu.at(i));
     }
@@ -291,22 +292,22 @@ int main(int argc, char** argv)
 
     // Get converged calibration
     double toff;
-    Eigen::Matrix3d R_BtoI;
-    Eigen::Vector3d p_BinI, grav_inV;
-    solver.get_calibration(toff, R_BtoI, p_BinI, grav_inV);
+    Eigen::Matrix3d R_BtoI, R_GtoV;
+    Eigen::Vector3d p_BinI;
+    solver.get_calibration(toff, R_BtoI, p_BinI, R_GtoV);
     Eigen::Vector4d q_BtoI = rot_2_quat(R_BtoI);
-    Eigen::Vector4d gt_q_BtoI = rot_2_quat(params.R_BtoI);
+    Eigen::Vector4d gt_q_BtoI = rot_2_quat(sim->get_params().R_BtoI);
 
     printf(REDPURPLE "======================================\n");
     printf(REDPURPLE "Converged Calib vs Groundtruth\n");
     printf(REDPURPLE "======================================\n");
-    printf(REDPURPLE "GT  toff: %.5f\n", params.viconimu_dt);
+    printf(REDPURPLE "GT  toff: %.5f\n", sim->get_params().viconimu_dt);
     printf(REDPURPLE "EST toff: %.5f\n\n", toff);
-    printf(REDPURPLE "GT  grav_inV: %.3f, %.3f, %.3f\n", params.gravity(0), params.gravity(1), params.gravity(2));
-    printf(REDPURPLE "EST grav_inV: %.3f, %.3f, %.3f\n\n", grav_inV(0), grav_inV(1), grav_inV(2));
+    printf(REDPURPLE "GT  rpy R_GtoV: %.3f, %.3f, %.3f\n", rot2rpy(sim->get_params().R_GtoV)(0), rot2rpy(sim->get_params().R_GtoV)(1), rot2rpy(sim->get_params().R_GtoV)(2));
+    printf(REDPURPLE "EST rpy R_GtoV: %.3f, %.3f, %.3f\n\n", rot2rpy(R_GtoV)(0), rot2rpy(R_GtoV)(1), rot2rpy(R_GtoV)(2));
     printf(REDPURPLE "GT  q_BtoI: %.3f, %.3f, %.3f, %.3f\n", gt_q_BtoI(0), gt_q_BtoI(1), gt_q_BtoI(2), gt_q_BtoI(3));
     printf(REDPURPLE "EST q_BtoI: %.3f, %.3f, %.3f, %.3f\n\n", q_BtoI(0), q_BtoI(1), q_BtoI(2), q_BtoI(3));
-    printf(REDPURPLE "GT  p_BinI: %.3f, %.3f, %.3f\n", params.p_BinI(0), params.p_BinI(1), params.p_BinI(2));
+    printf(REDPURPLE "GT  p_BinI: %.3f, %.3f, %.3f\n", sim->get_params().p_BinI(0), sim->get_params().p_BinI(1), sim->get_params().p_BinI(2));
     printf(REDPURPLE "EST p_BinI: %.3f, %.3f, %.3f\n\n", p_BinI(0), p_BinI(1), p_BinI(2));
 
 

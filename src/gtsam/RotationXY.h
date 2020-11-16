@@ -24,8 +24,8 @@
  */
 
 
-#ifndef GTSAM_JPLQUATERNION_H
-#define GTSAM_JPLQUATERNION_H
+#ifndef GTSAM_ROTATIONXY_H
+#define GTSAM_ROTATIONXY_H
 
 
 #include <Eigen/Eigen>
@@ -33,51 +33,65 @@
 #include <gtsam/base/Manifold.h>
 #include <gtsam/nonlinear/NonlinearFactor.h>
 
-#include "utils/quat_ops.h"
+#include "utils/rpy_ops.h"
+
 
 namespace gtsam {
 
     /**
-     * @brief JPL Quaterion
-     * A quaternion that uses negative left error in JPL format.
+     * @brief A 3d rotation with yaw fixed at zero
+     * Estimate a 2 dof rotation => Rotx * Roty * Rotz(0)
      */
-    class JPLQuaternion {
+    class RotationXY {
     private:
 
-        Eigen::Matrix<double,4,1> q_GtoI; ///< Rotation from global to IMU
+        double theta_x; ///< Rotation about the x-axis
+        double theta_y; ///< Rotation about the y-axis
 
     public:
 
         enum {
-            dimension = 3
+            dimension = 2
         };
 
         /// Default constructor
-        JPLQuaternion() : q_GtoI(0,0,0,1) { }
+        RotationXY() : theta_x(0), theta_y(0) { }
 
-        /// Construct from JPLQuaternion directly
-        JPLQuaternion(const JPLQuaternion& obj) {
-            this->q_GtoI = obj.q_GtoI;
+        /// Construct from RotationXY directly
+        RotationXY(const RotationXY& obj) {
+            this->theta_x = obj.theta_x;
+            this->theta_y = obj.theta_y;
         }
 
-        /// Construct from orientation
-        JPLQuaternion(const Eigen::Matrix<double,4,1>& q) : q_GtoI(q) { }
+        /// Construct from two angles
+        RotationXY(const double& thetax, const double& thetay) : theta_x(thetax), theta_y(thetay) { }
 
-        /// Return rotation quaternion.
-        Eigen::Matrix<double,4,1> q() const {
-            return q_GtoI;
+        /// Return x rotation theta.
+        double thetax() const {
+            return theta_x;
+        }
+
+        /// Return y rotation theta.
+        double thetay() const {
+            return theta_y;
+        }
+
+        /// Return full 3D rotation
+        Eigen::Matrix3d rot() const {
+            return rot_y(theta_y)*rot_x(theta_x);
         }
 
         /// Retract with optional derivatives (given correction)
-        JPLQuaternion retract(const Vector3& xi) const;
+        RotationXY retract(const Vector2& xi) const;
 
         /// Converting function from our over parameterization to the local representation (expanding about the current node's tangent space)
-        Vector3 localCoordinates(const JPLQuaternion& state) const;
+        Vector2 localCoordinates(const RotationXY& state) const;
 
         /// How this node gets printed in the ostream
         GTSAM_EXPORT
-        friend std::ostream &operator<<(std::ostream &os, const JPLQuaternion& state) {
-            os << "q:[" << state.q()(0) << ", " << state.q()(1) << ", " << state.q()(2) << ", " << state.q()(3) << "]'" << std::endl;
+        friend std::ostream &operator<<(std::ostream &os, const RotationXY& state) {
+            os << "thetax:[" << state.thetax() << "]'" << std::endl;
+            os << "thetay:[" << state.thetay() << "]'" << std::endl;
             return os;
         }
 
@@ -87,18 +101,19 @@ namespace gtsam {
         }
 
         /// Equals function to compare this and another JPLNavState
-        bool equals(const JPLQuaternion& other, double tol = 1e-8) const {
-            return gtsam::equal(q_GtoI, other.q_GtoI, tol);
+        bool equals(const RotationXY& other, double tol = 1e-8) const {
+            return gtsam::equal(theta_x, other.theta_x, tol)
+                && gtsam::equal(theta_y, other.theta_y, tol);
         }
 
 
     };
 
     template<>
-    struct traits<JPLQuaternion> : internal::Manifold<JPLQuaternion> { };
+    struct traits<RotationXY> : internal::Manifold<RotationXY> { };
 
 
 } // namespace gtsam
 
 
-#endif /* GTSAM_JPLQUATERNION_H */
+#endif /* GTSAM_ROTATIONXY_H */

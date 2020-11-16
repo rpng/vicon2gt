@@ -31,7 +31,7 @@ using namespace std;
 using namespace gtsam;
 
 
-gtsam::Vector ImuFactorCPIv1::evaluateError(const JPLNavState& state_i, const JPLNavState& state_j, const Vector3& gravity,
+gtsam::Vector ImuFactorCPIv1::evaluateError(const JPLNavState& state_i, const JPLNavState& state_j, const RotationXY& rotxy,
                                             boost::optional<Matrix&> H1, boost::optional<Matrix&> H2, boost::optional<Matrix&> H3) const {
 
     // Separate our variables from our states
@@ -48,7 +48,9 @@ gtsam::Vector ImuFactorCPIv1::evaluateError(const JPLNavState& state_i, const JP
 
     // Estimated gravity in the global frame
     // We do this so our global frame doesn't have to be gravity aligned
-    Vector3 grav_inG = gravity;
+    // Global frame in this this file is the vicon frame
+    Vector3 ez = {0,0,1};
+    Vector3 grav_inG = rotxy.rot()*gravity_magnitude*ez;
 
     //================================================================================
     //================================================================================
@@ -198,16 +200,20 @@ gtsam::Vector ImuFactorCPIv1::evaluateError(const JPLNavState& state_i, const JP
 
     }
 
-    // Jacobian in respect to the global gravity
+    // Jacobian in respect to the global gravity rotation into vicon frame
     if(H3) {
         // Our jacobian
-        Eigen::Matrix<double,15,3> Hg = Eigen::Matrix<double,15,3>::Zero();
-        // Derivative of beta in respect to gravity
-        Hg.block(6,0,3,3) = quat_2_Rot(q_GtoK)*deltatime;
-        // Derivative of alpha in respet to gravity
-        Hg.block(12,0,3,3) = 0.5*quat_2_Rot(q_GtoK)*std::pow(deltatime,2);
+        Eigen::Matrix<double,3,2> H_thetaxy = Eigen::Matrix<double,3,2>::Zero();
+        H_thetaxy.block(0,0,3,1)
+                << -std::sin(rotxy.thetay())*std::sin(rotxy.thetax()), -std::cos(rotxy.thetax()), -std::cos(rotxy.thetay())*std::sin(rotxy.thetax());
+        H_thetaxy.block(0,1,3,1)
+                << std::cos(rotxy.thetay())*std::cos(rotxy.thetax()), 0.0, -std::sin(rotxy.thetay())*std::cos(rotxy.thetax());
+        // Derivative of beta, alpha, in respect to our two rotation angles
+        Eigen::Matrix<double,15,2> Hg = Eigen::Matrix<double,15,2>::Zero();
+        Hg.block(6,0,3,2) = quat_2_Rot(q_GtoK)*deltatime*gravity_magnitude*H_thetaxy;
+        Hg.block(12,0,3,2) = 0.5*quat_2_Rot(q_GtoK)*std::pow(deltatime,2)*gravity_magnitude*H_thetaxy;
         // Reconstruct the whole Jacobian
-        *H3 = *OptionalJacobian<15,3>(Hg);
+        *H3 = *OptionalJacobian<15,2>(Hg);
     }
 
 
