@@ -120,7 +120,7 @@ void ViconGraphSolver::build_and_solve() {
     auto it0 = timestamp_cameras.begin();
     while(it0 != timestamp_cameras.end()) {
         if(!propagator->has_bounding_imu(*it0)) {
-            ROS_INFO_THROTTLE(5,"    - deleted cam time %.9f [throttled]",*it0);
+            ROS_INFO_THROTTLE(0.1,"    - deleted cam time %.9f [throttled]",*it0);
             it0 = timestamp_cameras.erase(it0);
         } else {
             it0++;
@@ -423,7 +423,7 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
         // Skip if we don't have a vicon measurement for this pose
         if(!has_vicon1 || !has_vicon2 || !has_vicon3) {
-            ROS_INFO_THROTTLE(5, "    - skipping camera time %.9f (no vicon pose found) [throttled]", timestamp_inI);
+            ROS_INFO_THROTTLE(0.1, "    - skipping camera time %.9f (no vicon pose found) [throttled]", timestamp_inI);
             if(values.find(X(map_states[timestamp_inI])) != values.end()) {
                 values.erase(X(map_states[timestamp_inI]));
             }
@@ -433,7 +433,7 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
         // Check if we can do the inverse
         if(std::isnan(R_vicon.norm()) || std::isnan(R_vicon.inverse().norm())) {
-            ROS_INFO_THROTTLE(5, "    - skipping camera time %.9f (R.norm = %.3f | Rinv.norm = %.3f) [throttled]", timestamp_inI, R_vicon.norm(), R_vicon.inverse().norm());
+            ROS_INFO_THROTTLE(0.1, "    - skipping camera time %.9f (R.norm = %.3f | Rinv.norm = %.3f) [throttled]", timestamp_inI, R_vicon.norm(), R_vicon.inverse().norm());
             if(values.find(X(map_states[timestamp_inI])) != values.end()) {
                 values.erase(X(map_states[timestamp_inI]));
             }

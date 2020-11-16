@@ -35,7 +35,7 @@ mkdir -p "$save_path2"
 
 
 # Monte Carlo runs for this dataset
-for j in {00..09}; do
+for j in {10..29}; do
 
 # start timing
 start_time="$(date -u +%s)"

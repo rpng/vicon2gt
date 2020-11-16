@@ -208,6 +208,9 @@ bool Propagator::has_bounding_imu(double timestamp) {
         if (imu_data.at(i).timestamp >= timestamp) {
             has_upper = true;
         }
+        // Break early
+        if(has_lower && has_upper)
+            break;
     }
 
     // Return if we found
