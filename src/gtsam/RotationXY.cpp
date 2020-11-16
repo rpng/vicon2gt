@@ -35,8 +35,6 @@ using namespace gtsam;
 RotationXY gtsam::RotationXY::retract(const Vector2 &xi) const {
 
     // Calculate the update theta x y values
-    // NOTE: we should probably wrap these values?
-    // NOTE: but doesn't matter that much since we are just using them in a sin/cos
     double theta_new_x = wrap2pi(theta_x + xi(0));
     double theta_new_y = wrap2pi(theta_y + xi(1));
 

@@ -26,10 +26,6 @@
 #include "Propagator.h"
 
 
-
-/**
- * This should append incoming IMU messages to our stored data array
- */
 void Propagator::feed_imu(double timestamp, Eigen::Matrix<double,3,1> wm, Eigen::Matrix<double,3,1> am) {
 
     // Create our imu data object
@@ -44,11 +40,6 @@ void Propagator::feed_imu(double timestamp, Eigen::Matrix<double,3,1> wm, Eigen:
 }
 
 
-
-/**
- * Given two timestamps and the bias linerization points (can be taken to be zero at the start)
- * This will propagate between the specified timestamps with the IMU messages we have currently stored
- */
 bool Propagator::propagate(double time0, double time1, Eigen::Matrix<double,3,1> bg_lin, Eigen::Matrix<double,3,1> ba_lin, CpiV1& integration) {
 
 
@@ -181,12 +172,6 @@ bool Propagator::propagate(double time0, double time1, Eigen::Matrix<double,3,1>
 
 }
 
-
-
-
-/**
- * This function will check if we have IMU measurements before and after the given timestamp
- */
 bool Propagator::has_bounding_imu(double timestamp) {
 
     // Ensure we have some measurements in the first place!

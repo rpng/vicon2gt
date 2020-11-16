@@ -53,7 +53,7 @@ namespace gtsam {
 
     public:
 
-        /// Construct from the two linking JPLNavStates, preingration measurement, and its covariance
+        /// Construct from the JPLNavState, calibration, and time offset
         MeasBased_ViconPoseTimeoffsetFactor(Key kstate, Key kR_BtoI, Key kp_BinI, Key kt_off,
                                             std::shared_ptr<Interpolator> interpolator, std::shared_ptr<GtsamConfig> config) :
                 NoiseModelFactor4<JPLNavState, JPLQuaternion, Vector3, Vector1>(noiseModel::Robust::Create(

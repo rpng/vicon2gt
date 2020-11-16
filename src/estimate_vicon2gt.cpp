@@ -58,7 +58,7 @@ int main(int argc, char** argv)
     // Load the bag path
     bool save2file;
     std::string path_to_bag, path_states, path_info;
-    nh.param<std::string>("path_bag", path_to_bag, "/home/patrick/datasets/ARL/ironsides_tracking/2019-02-22-12-03-15.bag");
+    nh.param<std::string>("path_bag", path_to_bag, "bagfile.bag");
     nh.param<std::string>("stats_path_states", path_states, "gt_states.csv");
     nh.param<std::string>("stats_path_info", path_info, "vicon2gt_info.txt");
     nh.param<bool>("save2file", save2file, false);

@@ -49,7 +49,7 @@ class Propagator
 
 public:
 
-    // Default constuctor
+    /// Default constuctor
     Propagator(double sigmaw, double sigmawb, double sigmaa, double sigmaab) {
         this->sigma_w = sigmaw;
         this->sigma_wb = sigmawb;
@@ -57,13 +57,13 @@ public:
         this->sigma_ab = sigmaab;
     }
 
-    // Our feed function for IMU measurements
+    /// Our feed function for IMU measurements, will append to our historical vector
     void feed_imu(double timestamp, Eigen::Matrix<double,3,1> wm, Eigen::Matrix<double,3,1> am);
 
-    // Our propagation function, will propagate to the next timestep
+    /// This will propgate the preintegration class between the two requested timesteps
     bool propagate(double time0, double time1, Eigen::Matrix<double,3,1> bg_lin, Eigen::Matrix<double,3,1> ba_lin, CpiV1& integration);
 
-    // Check if we have bounding IMU poses
+    /// Checks if we have bounding IMU poses around a given timestamp
     bool has_bounding_imu(double timestamp);
 
 private:

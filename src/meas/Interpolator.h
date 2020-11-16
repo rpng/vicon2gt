@@ -93,8 +93,6 @@ private:
     // Note that this is sorted by timestamps so we can binary search through it....
     std::set<POSEDATA,std::less<POSEDATA>> pose_data;
 
-
-
 };
 
 

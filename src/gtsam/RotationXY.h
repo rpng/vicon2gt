@@ -40,7 +40,7 @@ namespace gtsam {
 
     /**
      * @brief A 3d rotation with yaw fixed at zero
-     * Estimate a 2 dof rotation => Rotx * Roty * Rotz(0)
+     * Estimate a 2 dof rotation => Rotz(0) * Roty * Rotx
      */
     class RotationXY {
     private:

@@ -51,7 +51,8 @@ namespace gtsam {
     /**
      * @brief Continuous Preintegration Factor Model 1
      * Links two full JPL Navigation States with an IMU preintegrated measurement
-     * NOTE: we have added gravity here which the gravity in the estimate frame of reference
+     * NOTE: we have added rotation from vicon frame to gravity inertial frame
+     * NOTE: see reference tech report for details...
      *
      * > Continuous Preintegration Theory for Graph-based Visual-Inertial Navigation
      * > Authors: Kevin Eckenhoff, Patrick Geneva, and Guoquan Huang
