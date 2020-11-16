@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!DOCTYPE ipe SYSTEM "ipe.dtd">
 <ipe version="70218" creator="Ipe 7.2.18">
-<info created="D:20201109155758" modified="D:20201109155758"/>
+<info created="D:20201109155758" modified="D:20201115204253"/>
 <ipestyle name="basic">
 <symbol name="arrow/arc(spx)">
 <path stroke="sym-stroke" fill="sym-stroke" pen="sym-pen">
@@ -361,7 +361,7 @@ h
 66.4942 670.591 m
 66.192 689.932 l
 </path>
-<text matrix="1 0 0 1 12.3901 -2.1151" transformations="translations" pos="46.7004 695.673" stroke="black" type="label" width="12.806" height="8.388" depth="1.93" valign="baseline">${}^V\mathbf{g}$</text>
+<text matrix="1 0 0 1 16.873 -2.1151" transformations="translations" pos="46.7004 695.673" stroke="blue" type="label" width="5.888" height="4.435" depth="1.93" valign="baseline" style="math">\mathbf{g}</text>
 <path stroke="darkgray" dash="dashed" arrow="normal/normal">
 67.0986 670.591 m
 120.587 752.788 l
@@ -427,5 +427,14 @@ h
 67.0986 670.591 m
 120.587 752.788 l
 </path>
+<path matrix="-0.0151879 -0.999885 0.999885 -0.0151879 -603.226 747.162" stroke="blue" arrow="normal/normal">
+66.4942 670.591 m
+66.192 689.932 l
+</path>
+<path matrix="-2.29171 0.107885 -0.820639 -0.301277 769.438 865.864" stroke="blue" arrow="normal/normal">
+66.4942 670.591 m
+66.192 689.932 l
+</path>
+<text matrix="1 0 0 1 10.3949 6.91452" transformations="translations" pos="46.7004 695.673" stroke="blue" type="label" width="17.781" height="7.473" depth="2.49" valign="baseline">\{G\}</text>
 </page>
 </ipe>

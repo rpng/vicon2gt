@@ -16,34 +16,38 @@ ros
 
 ```
 state_0: 
-m_time:[1413394882.44]'
-q:[0.0257068648823, -0.795603373718, 0.0363500247023, 0.604179695563]'
-bg:[-0.00189916154709, 0.0243152833864, 0.0807307477958]'
-v:[-0.000133337500769, 0.00575180823653, -0.000724871724463]'
-ba:[0.0190844911612, 0.091082677377, 0.00706744868603]'
-p:[-1.05876790375, 0.428205735887, 1.33507858186]'
+m_time:[1413394882.43529]'
+q:[0.0251614, -0.79553, 0.0362641, 0.604304]'
+bg:[-0.00190837, 0.0243624, 0.0807357]'
+v:[-0.00342677, 0.00767059, 0.0012364]'
+ba:[-0.012316, 0.0955729, 0.0272365]'
+p:[-1.05904, 0.429683, 1.33247]'
 
 state_N: 
-m_time:[1413394997.14]'
-q:[-0.492577574755, -0.637052268672, -0.359427482017, 0.4715332703]'
-bg:[-0.00161559034645, 0.0255108277786, 0.079954020838]'
-v:[-0.00726564037527, 0.012639815567, -0.00249341953281]'
-ba:[0.0311904335341, 0.0279113668375, 0.0250458337156]'
-p:[-3.02776826575, -0.526174099205, 0.96038346419]'
+m_time:[1413394997.13767]'
+q:[-0.493136, -0.636743, -0.359694, 0.471165]'
+bg:[-0.00152427, 0.0255527, 0.0799344]'
+v:[-0.00181216, 0.00289851, -0.00109534]'
+ba:[-0.00140464, 0.0198116, 0.0590847]'
+p:[-3.02558, -0.526505, 0.958149]'
 
 R_BtoI: 
- 0.301686577941 0.0177220217954  0.953242434344
-0.0246935408972 -0.999637058319 0.0107694323235
- 0.953087319047 0.0202899378534 -0.302014702778
+ 0.301581  0.017225  0.953285
+0.0239218 -0.999659  0.010495
+  0.95314 0.0196392 -0.301891
 
 p_BinI: 
- 0.0765661266578 -0.0237148659109 -0.117918182433
+ 0.0789319
+-0.0253601
+ -0.118787
 
-gravity: 
-0.0743268225068 0.0849888222512 9.76992397331
+R_GtoV: 
+    0.999968            0   0.00803607
+-7.00472e-05     0.999962   0.00871631
+ -0.00803577  -0.00871659      0.99993
 
 t_off_vicon_to_imu: 
-0.196106089294
+0.197127
 ```
 
 
@@ -60,7 +64,7 @@ t_off_vicon_to_imu:
 
 5) *Explain the timestamps the groundtruth file has in it* -- We have two time systems in the project: vicon and inertial. The states we estimate in the optimization problem are in the IMU clock frame and the CSV file we save has timestamps in the IMU clock frame. We use an arbitrary topic timestamps to define what timestamps we will export, but all these times are still in the IMU clock frame. E.g. if we use a camera topic, the CSV will have the poses at the IMU clock time of the timestamps in this topic (i.e. if you wish to get the pose at the camera timestamp you will have an additional imu-to-camera time offset you need to worry about and is not taken into account here).
 
-6) *What frame of reference is the groundtruth file in?* -- The trajectory is in the motion capture frame of reference which is not necessarily gravity aligned. Additionally we saw in simulation that in many cases with high noise or degeneracy there was a trajectory position bias (e.g. off by 1-2cm due to vicon marker to IMU calibration offset), thus it is recommended to perform a full SE(3) alignment to your visual-inertial trajectory.
+6) *What frame of reference is the groundtruth file in?* -- The saved trajectory is in the gravity aligned frame of reference with its origin located at the vicon frame and yaw set to zero. We estimate the roll pitch rotation from the vicon frame to the gravity aligned frame, and save all groundtruth orientations rotated into this gravity frame. Thus one should use either a position + yaw or SE(3) alignment method.
 
 
 
