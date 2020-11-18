@@ -30,6 +30,7 @@
         <!-- world parameters -->
         <rosparam param="R_BtoI">[0.337977, 0.000209931, 0.941155, 0.0261378, -0.999616, -0.00916333, 0.940792, 0.0276967, -0.337852]</rosparam>
         <rosparam param="p_BinI">[0.0701351, -0.0162268, -0.528389]</rosparam>
+        <rosparam param="R_GtoV">[1, 0, 0, 0, 1, 0, 0, 0, 1]</rosparam>
         <param name="gravity_magnitude"          type="double" value="9.81" />
         <param name="toff_imu_to_vicon"          type="double" value="0.0" />
         <param name="num_loop_relin"             type="int"    value="0" />

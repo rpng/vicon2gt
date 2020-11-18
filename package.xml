@@ -14,7 +14,7 @@
     <maintainer email="pgeneva@udel.edu">Patrick Geneva</maintainer>
 
     <!-- Licensing -->
-    <license>MIT</license>
+    <license>GNU General Public License v3.0</license>
 
     <!-- Dependencies which this package needs to build itself. -->
     <buildtool_depend>catkin</buildtool_depend>

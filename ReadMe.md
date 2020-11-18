@@ -2,7 +2,7 @@
 
 This utility was created to generate groundtruth trajectories using a motion capture system (e.g. Vicon or OptiTrack) for use in evaluating visual-inertial estimation systems.
 Specifically we want to calculate the inertial IMU state (full 15 dof) at camera frequency rate and generate a groundtruth trajectory similar to those provided by the EurocMav datasets.
-Please take a look at the **[REPORT](docs/report.pdf)** for specific details and a more formal description.
+Please take a look at the **[REPORT](docs/tr_vicon2gt.pdf)** for specific details and a more formal description.
 
 You will need to have a bag dataset that has the IMU, camera, and motion capture measurements of either `geometry_msgs::TransformStamped`, `geometry_msgs::PoseStamped`, or `nav_msgs::Odometry`.
 If you are using the odometry topic it will use the provided covariance, otherwise it will use the one specified in the launch file.
@@ -98,6 +98,25 @@ echo 'export LD_LIBRARY_PATH=/usr/local/lib/:$LD_LIBRARY_PATH' >> ~/.bashrc
 ```
 
 
+## Credit / Licensing
+
+This code was written by the [Robot Perception and Navigation Group (RPNG)](https://sites.udel.edu/robot/) at the University of Delaware.
+If you have any issues with the code please open an issue on our github page with relevant implementation details and references.
+For researchers that have leveraged or compared to this work, please cite the following:
+
+```txt
+@TechReport{Geneva2020TRVICON2GT,
+  Title = {vicon2gt: Derivations and Analysis},
+  Author = {Patrick Geneva and Guoquan Huang},
+  Number = {RPNG-2020-VICON2GT},
+  Institution = {University of Delaware},
+  Note = {Available: \url{http://udel.edu/~ghuang/papers/tr_vicon2gt.pdf}},
+  Year = {2020},
+}
+```
+
+
+The codebase is licensed under the [GNU General Public License v3 (GPL-3)](https://www.gnu.org/licenses/gpl-3.0.txt).
 
 
 
