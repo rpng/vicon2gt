@@ -51,17 +51,19 @@ int main(int argc, char** argv)
     nh.param<std::string>("topic_vicon", topic_vicon, "/vicon/ironsides/odom");
 
     // Load the bag path
-    bool save2file;
+    bool save2file, use_manual_sigmas;
     std::string path_to_bag, path_states, path_info;
     nh.param<std::string>("path_bag", path_to_bag, "bagfile.bag");
     nh.param<std::string>("stats_path_states", path_states, "gt_states.csv");
     nh.param<std::string>("stats_path_info", path_info, "vicon2gt_info.txt");
     nh.param<bool>("save2file", save2file, false);
+    nh.param<bool>("use_manual_sigmas", use_manual_sigmas, false);
     ROS_INFO("rosbag information...");
     ROS_INFO("    - bag path: %s", path_to_bag.c_str());
     ROS_INFO("    - state path: %s", path_states.c_str());
     ROS_INFO("    - info path: %s", path_info.c_str());
     ROS_INFO("    - save to file: %d", (int)save2file);
+    ROS_INFO("    - use manual sigmas: %d", (int)use_manual_sigmas);
 
     // Get our start location and how much of the bag we want to play
     // Make the bag duration < 0 to just process to the end of the bag
@@ -183,6 +185,12 @@ int main(int argc, char** argv)
                 for(size_t r=0;r<6;r++) {
                     pose_cov(r,c) = s2->pose.covariance[6*c+r];
                 }
+            }
+            // Overwrite if using manual sigmas
+            if(use_manual_sigmas) {
+                pose_cov = Eigen::Matrix<double,6,6>::Zero();
+                pose_cov.block(3,3,3,3) = R_q;
+                pose_cov.block(0,0,3,3) = R_p;
             }
             //Eigen::Map<Eigen::Matrix<double,6,6,Eigen::RowMajor>> pose_cov(s2->pose.covariance.begin(),36,1);
             // feed it!

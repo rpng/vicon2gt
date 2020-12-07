@@ -42,6 +42,7 @@
         <!-- sigmas: (rx,ry,rz,px,py,pz) -->
         <rosparam param="vicon_sigmas">[1e-3,1e-3,1e-3,1e-2,1e-2,1e-2]</rosparam>
         <param name="freq_pub_raw_vicon" type="double" value="10.0" />
+        <param name="use_manual_sigmas"  type="bool"   value="true" />
 
         <!-- vi-sensor -->
         <param name="gyroscope_noise_density"      type="double"   value="1.6968e-04" />
