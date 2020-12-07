@@ -79,6 +79,10 @@ public:
             double &time0, Eigen::Matrix<double,4,1>& q0, Eigen::Matrix<double,3,1>& p0, Eigen::Matrix<double,6,6>& R0,
             double &time1, Eigen::Matrix<double,4,1>& q1, Eigen::Matrix<double,3,1>& p1, Eigen::Matrix<double,6,6>& R1);
 
+    /// Get all raw poses (used only for viz)
+    std::set<POSEDATA,std::less<POSEDATA>> get_raw_poses() {
+        return pose_data;
+    }
 
 private:
 

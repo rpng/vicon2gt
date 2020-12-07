@@ -26,6 +26,7 @@
 #include <ros/ros.h>
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/PoseArray.h>
 
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/inference/Symbol.h>
@@ -139,7 +140,8 @@ protected:
 
     // ROS node handler
     ros::NodeHandle nh;
-    ros::Publisher pub_pathimu, pub_pathvicon;
+    ros::Publisher pub_pathimu, pub_pathvicon, pub_vicon_raw;
+    double vicon_raw_pub_freq;
 
     // Measurement data from the rosbag
     std::shared_ptr<Propagator> propagator;

@@ -88,9 +88,13 @@ ViconGraphSolver::ViconGraphSolver(ros::NodeHandle& nh, std::shared_ptr<Propagat
     // ================================================================================================
     // ================================================================================================
 
+    // Frequency we will publish the raw vicon poses at
+    nh.param<double>("freq_pub_raw_vicon", vicon_raw_pub_freq, 10.0);
+
     // Setup our ROS publishers
     pub_pathimu = nh.advertise<nav_msgs::Path>("/vicon2gt/optimized", 2);
     pub_pathvicon = nh.advertise<nav_msgs::Path>("/vicon2gt/vicon", 2);
+    pub_vicon_raw = nh.advertise<geometry_msgs::PoseArray>("/vicon2gt/vicon_raw", 2);
 
 }
 
@@ -316,6 +320,28 @@ void ViconGraphSolver::visualize() {
         arrVICON.poses.push_back(poses_vicon.at(i));
     }
     pub_pathvicon.publish(arrVICON);
+
+    // Pose array of the raw VICON poses which we get on our vicon topic
+    // NOTE: might be a lot to visualize if high frequency vicon system...
+    double last_pub_time = -1;
+    geometry_msgs::PoseArray pose_arr;
+    pose_arr.header.stamp = ros::Time::now();
+    pose_arr.header.frame_id = "vicon";
+    for(const auto &pose_data : interpolator->get_raw_poses()) {
+        if(last_pub_time != -1 && (last_pub_time+1.0/vicon_raw_pub_freq) > pose_data.timestamp)
+            continue;
+        geometry_msgs::Pose pose;
+        pose.orientation.x = pose_data.q(0);
+        pose.orientation.y = pose_data.q(1);
+        pose.orientation.z = pose_data.q(2);
+        pose.orientation.w = pose_data.q(3);
+        pose.position.x = pose_data.p(0);
+        pose.position.y = pose_data.p(1);
+        pose.position.z = pose_data.p(2);
+        pose_arr.poses.push_back(pose);
+        last_pub_time = pose_data.timestamp;
+    }
+    pub_vicon_raw.publish(pose_arr);
 
 }
 
