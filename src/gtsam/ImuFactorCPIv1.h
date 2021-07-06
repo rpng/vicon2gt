@@ -138,12 +138,12 @@ namespace gtsam {
         /// How this factor gets printed in the ostream
         GTSAM_EXPORT
         friend std::ostream &operator<<(std::ostream &os, const ImuFactorCPIv1& factor) {
-            os << "dt:[" << factor.dt() << "]'" << endl;
-            os << "alpha:[" << factor.m_alpha()(0) << ", " << factor.m_alpha()(1) << ", " << factor.m_alpha()(2) << "]'" << endl;
-            os << "beta:[" << factor.m_beta()(0) << ", " << factor.m_beta()(1) << ", " << factor.m_beta()(2) << "]'" << endl;
-            os << "dq_KtoK1:[" << factor.m_q()(0) << ", " << factor.m_q()(1) << ", " << factor.m_q()(2) << ", " << factor.m_q()(3) << "]'" << endl;
-            os << "ba_lin:[" << factor.m_balin()(0) << ", " << factor.m_balin()(1) << ", " << factor.m_balin()(2) << "]'" << endl;
-            os << "bg_lin:[" << factor.m_bglin()(0) << ", " << factor.m_bglin()(1) << ", " << factor.m_bglin()(2) << "]'" << endl;
+            os << "dt:[" << factor.dt() << "]'" << std::endl;
+            os << "alpha:[" << factor.m_alpha()(0) << ", " << factor.m_alpha()(1) << ", " << factor.m_alpha()(2) << "]'" << std::endl;
+            os << "beta:[" << factor.m_beta()(0) << ", " << factor.m_beta()(1) << ", " << factor.m_beta()(2) << "]'" << std::endl;
+            os << "dq_KtoK1:[" << factor.m_q()(0) << ", " << factor.m_q()(1) << ", " << factor.m_q()(2) << ", " << factor.m_q()(3) << "]'" << std::endl;
+            os << "ba_lin:[" << factor.m_balin()(0) << ", " << factor.m_balin()(1) << ", " << factor.m_balin()(2) << "]'" << std::endl;
+            os << "bg_lin:[" << factor.m_bglin()(0) << ", " << factor.m_bglin()(1) << ", " << factor.m_bglin()(2) << "]'" << std::endl;
             return os;
         }
 

@@ -28,6 +28,7 @@
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 #include <sensor_msgs/Imu.h>
+#include <sensor_msgs/Image.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TransformStamped.h>
@@ -165,9 +166,28 @@ int main(int argc, char** argv)
             ct_imu++;
         }
 
-        // Handle CAMEREA messages
-        if (m.getTopic() == topic_cam) {
-            timestamp_cameras.push_back(m.getTime().toSec());
+        // Handle CAMERA messages
+        // For some reason using m.getTime() seems to not work on all bags?
+        // It seems to happen on bags that have been re-processed already...
+        auto cam_s0 = m.instantiate<geometry_msgs::PoseStamped>();
+        auto cam_s1 = m.instantiate<nav_msgs::Odometry>();
+        auto cam_s2 = m.instantiate<geometry_msgs::TransformStamped>();
+        auto cam_s3 = m.instantiate<geometry_msgs::PoseStamped>();
+        auto cam_s4 = m.instantiate<sensor_msgs::Image>();
+        if (cam_s0 != nullptr && m.getTopic() == topic_cam) {
+            timestamp_cameras.push_back(cam_s0->header.stamp.toSec());
+            ct_cam++;
+        } else if (cam_s1 != nullptr && m.getTopic() == topic_cam) {
+            timestamp_cameras.push_back(cam_s1->header.stamp.toSec());
+            ct_cam++;
+        } else if (cam_s2 != nullptr && m.getTopic() == topic_cam) {
+            timestamp_cameras.push_back(cam_s2->header.stamp.toSec());
+            ct_cam++;
+        } else if (cam_s3 != nullptr && m.getTopic() == topic_cam) {
+            timestamp_cameras.push_back(cam_s3->header.stamp.toSec());
+            ct_cam++;
+        } else if (cam_s4 != nullptr && m.getTopic() == topic_cam) {
+            timestamp_cameras.push_back(cam_s4->header.stamp.toSec());
             ct_cam++;
         }
 

@@ -120,19 +120,19 @@ namespace gtsam {
         /// How this node gets printed in the ostream
         GTSAM_EXPORT
         friend std::ostream &operator<<(std::ostream &os, const JPLNavState& state) {
-            streamsize ss = os.precision();
-            os << "m_time:[" << std::setprecision(15) << state.time() << std::setprecision(ss)  << "]'" << endl;
-            os << "q:[" << state.q()(0) << ", " << state.q()(1) << ", " << state.q()(2) << ", " << state.q()(3) << "]'" << endl;
-            os << "bg:[" << state.bg()(0) << ", " << state.bg()(1) << ", " << state.bg()(2) << "]'" << endl;
-            os << "v:[" << state.v()(0) << ", " << state.v()(1) << ", " << state.v()(2) << "]'" << endl;
-            os << "ba:[" << state.ba()(0) << ", " << state.ba()(1) << ", " << state.ba()(2) << "]'" << endl;
-            os << "p:[" << state.p()(0) << ", " << state.p()(1) << ", " << state.p()(2) << "]'" << endl;
+            std::streamsize ss = os.precision();
+            os << "m_time:[" << std::setprecision(15) << state.time() << std::setprecision(ss)  << "]'" << std::endl;
+            os << "q:[" << state.q()(0) << ", " << state.q()(1) << ", " << state.q()(2) << ", " << state.q()(3) << "]'" << std::endl;
+            os << "bg:[" << state.bg()(0) << ", " << state.bg()(1) << ", " << state.bg()(2) << "]'" << std::endl;
+            os << "v:[" << state.v()(0) << ", " << state.v()(1) << ", " << state.v()(2) << "]'" << std::endl;
+            os << "ba:[" << state.ba()(0) << ", " << state.ba()(1) << ", " << state.ba()(2) << "]'" << std::endl;
+            os << "p:[" << state.p()(0) << ", " << state.p()(1) << ", " << state.p()(2) << "]'" << std::endl;
             return os;
         }
 
         /// Print function for this node
         void print(const std::string& s = "") const {
-            cout << s << *this << endl;
+            std::cout << s << *this << std::endl;
         }
 
         /// Equals function to compare this and another JPLNavState
