@@ -41,11 +41,11 @@ int main(int argc, char **argv) {
   // Start up
   ros::init(argc, argv, "estimate_vicon2gt");
   ros::NodeHandle nh("~");
+  auto rT1 = boost::posix_time::microsec_clock::local_time();
 
   // Load the imu, camera, and vicon topics
-  std::string topic_imu, topic_cam, topic_vicon;
+  std::string topic_imu, topic_vicon;
   nh.param<std::string>("topic_imu", topic_imu, "/imu0");
-  nh.param<std::string>("topic_cam", topic_cam, "/cam0/image_raw");
   nh.param<std::string>("topic_vicon", topic_vicon, "/vicon/ironsides/odom");
 
   // Load the bag path
@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
 
   // Start a few seconds in from the full view time
   // If we have a negative duration then use the full bag length
-  view_full.addQuery(bag);
+  view_full.addQuery(bag, rosbag::TopicQuery({topic_imu, topic_vicon}));
   ros::Time time_init = view_full.getBeginTime();
   time_init += ros::Duration(bag_start);
   ros::Time time_finish = (bag_durr < 0) ? view_full.getEndTime() : time_init + ros::Duration(bag_durr);
@@ -95,17 +95,18 @@ int main(int argc, char **argv) {
   ROS_INFO("    - time start = %.6f", time_init.toSec());
   ROS_INFO("    - time end   = %.6f", time_finish.toSec());
   ROS_INFO("    - duration   = %.2f (secs)", time_finish.toSec() - time_init.toSec());
-  view.addQuery(bag, time_init, time_finish);
+  view.addQuery(bag, rosbag::TopicQuery({topic_imu, topic_vicon}), time_init, time_finish);
 
   // Check to make sure we have data to play
   if (view.size() == 0) {
     ROS_ERROR("No messages to play on specified topics.  Exiting.");
     ROS_ERROR("IMU TOPIC: %s", topic_imu.c_str());
-    ROS_ERROR("CAM TOPIC: %s", topic_cam.c_str());
     ROS_ERROR("VIC TOPIC: %s", topic_vicon.c_str());
     ros::shutdown();
     return EXIT_FAILURE;
   }
+  auto rT2 = boost::posix_time::microsec_clock::local_time();
+  ROS_INFO("\u001b[34m[TIME]: %.4f to load bag\u001b[0m", (rT2 - rT1).total_microseconds() * 1e-6);
 
   //===================================================================================
   //===================================================================================
@@ -159,6 +160,7 @@ int main(int argc, char **argv) {
   };
 
   // Step through the rosbag
+  ROS_INFO("load custom data into memory...");
   for (const rosbag::MessageInstance &m : view) {
 
     // If ros is wants us to stop, break out
@@ -173,6 +175,7 @@ int main(int argc, char **argv) {
       am << s0->linear_acceleration.x, s0->linear_acceleration.y, s0->linear_acceleration.z;
       propagator->feed_imu(s0->header.stamp.toSec(), wm, am);
       ct_imu++;
+      continue;
     }
 
     // Handle VICON messages
@@ -209,6 +212,7 @@ int main(int argc, char **argv) {
       }
       warn_amount_vicon_rate(s2->header.stamp.toSec(), last_vicon_time);
       last_vicon_time = s2->header.stamp.toSec();
+      continue;
     }
 
     // Handle VICON messages
@@ -231,6 +235,7 @@ int main(int argc, char **argv) {
       }
       warn_amount_vicon_rate(s3->header.stamp.toSec(), last_vicon_time);
       last_vicon_time = s3->header.stamp.toSec();
+      continue;
     }
 
     // Handle VICON messages
@@ -253,8 +258,11 @@ int main(int argc, char **argv) {
       }
       warn_amount_vicon_rate(s4->header.stamp.toSec(), last_vicon_time);
       last_vicon_time = s4->header.stamp.toSec();
+      continue;
     }
   }
+  auto rT3 = boost::posix_time::microsec_clock::local_time();
+  ROS_INFO("\u001b[34m[TIME]: %.4f to preprocess\u001b[0m", (rT3 - rT2).total_microseconds() * 1e-6);
 
   // Create our camera timestamps at the requested fix frequency
   int ct_cam = 0;

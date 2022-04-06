@@ -8,8 +8,8 @@
 
 
     <!-- MASTER NODE! -->
-    <node name="estimate_vicon2gt" pkg="vicon2gt" type="estimate_vicon2gt" output="screen" clear_params="true" required="true">
-        <!--    <node name="estimate_vicon2gt" pkg="vicon2gt" type="estimate_vicon2gt" output="screen" clear_params="true" required="true" launch-prefix="gdb -ex run &#45;&#45;args">-->
+    <node name="$(anon estimate_vicon2gt)" pkg="vicon2gt" type="estimate_vicon2gt" output="screen" clear_params="true" required="true">
+<!--    <node name="estimate_vicon2gt" pkg="vicon2gt" type="estimate_vicon2gt" output="screen" clear_params="true" required="true" launch-prefix="gdb -ex run &#45;&#45;args">-->
 
         <!-- bag topics -->
         <param name="topic_imu"      type="string" value="/imu0" />
