@@ -50,14 +50,17 @@ int main(int argc, char** argv)
     // Load the export path
     bool save2file;
     std::string path_states, path_states_gt, path_info;
+    int state_freq;
     nh.param<std::string>("stats_path_states", path_states, "states.csv");
     nh.param<std::string>("stats_path_states_gt", path_states_gt, "gt.csv");
     nh.param<std::string>("stats_path_info", path_info, "vicon2gt_info.txt");
     nh.param<bool>("save2file", save2file, false);
+    nh.param<int>("state_freq", state_freq, 100);
     ROS_INFO("save path information...");
     ROS_INFO("    - state path: %s", path_states.c_str());
     ROS_INFO("    - info path: %s", path_info.c_str());
     ROS_INFO("    - save to file: %d", (int)save2file);
+    ROS_INFO("    - state_freq: %d", state_freq);
 
     //===================================================================================
     //===================================================================================
@@ -108,12 +111,12 @@ int main(int argc, char** argv)
     // Our data storage objects
     std::shared_ptr<Propagator> propagator = std::make_shared<Propagator>(sigma_w,sigma_wb,sigma_a,sigma_ab);
     std::shared_ptr<Interpolator> interpolator = std::make_shared<Interpolator>();
-    std::vector<double> timestamp_cameras;
 
     // Counts on how many measurements we have
     int ct_imu = 0;
-    int ct_cam = 0;
     int ct_vic = 0;
+    double start_time = -1;
+    double end_time = -1;
 
     // Step through the rosbag
     while(sim->ok() && ros::ok()) {
@@ -128,10 +131,7 @@ int main(int argc, char** argv)
 
         // CAM: get the next simulated camera uv measurements if we have them
         double time_cam;
-        if (sim->get_next_cam(time_cam)) {
-            timestamp_cameras.push_back(time_cam);
-            ct_cam++;
-        }
+        sim->get_next_cam(time_cam);
 
         // VICON: get the next simulated camera uv measurements if we have them
         double time_vicon;
@@ -140,8 +140,26 @@ int main(int argc, char** argv)
         if (sim->get_next_vicon(time_vicon, q_VtoB, p_BinV)) {
             interpolator->feed_pose(time_vicon,q_VtoB,p_BinV,R_q,R_p);
             ct_vic++;
+            if(start_time == -1) {
+              start_time = time_vicon;
+            }
+            if(start_time != -1) {
+              end_time = time_vicon;
+            }
         }
 
+    }
+
+    // Create our camera timestamps at the requested fix frequency
+    int ct_cam = 0;
+    std::vector<double> timestamp_cameras;
+    if(start_time != -1 && end_time != -1 && start_time < end_time) {
+      double temp_time = start_time;
+      while(temp_time < end_time) {
+        timestamp_cameras.push_back(temp_time);
+        temp_time += 1.0 / (double)state_freq;
+        ct_cam++;
+      }
     }
 
     // Print out how many we have loaded

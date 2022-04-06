@@ -438,7 +438,7 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
         // Skip if we don't have a vicon measurement for this pose
         if(!has_vicon1 || !has_vicon2 || !has_vicon3) {
-            ROS_INFO_THROTTLE(0.1, "    - skipping camera time %.9f (no vicon pose found) [throttled]", timestamp_inI);
+            ROS_WARN_THROTTLE(0.1, "    - skipping camera time %.9f (no vicon pose found) [throttled]", timestamp_inI);
             if(values.find(X(map_states[timestamp_inI])) != values.end()) {
                 values.erase(X(map_states[timestamp_inI]));
             }
@@ -448,7 +448,7 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
         // Check if we can do the inverse
         if(std::isnan(R_vicon.norm()) || std::isnan(R_vicon.inverse().norm())) {
-            ROS_INFO_THROTTLE(0.1, "    - skipping camera time %.9f (R.norm = %.3f | Rinv.norm = %.3f) [throttled]", timestamp_inI, R_vicon.norm(), R_vicon.inverse().norm());
+            ROS_WARN_THROTTLE(0.1, "    - skipping camera time %.9f (R.norm = %.3f | Rinv.norm = %.3f) [throttled]", timestamp_inI, R_vicon.norm(), R_vicon.inverse().norm());
             if(values.find(X(map_states[timestamp_inI])) != values.end()) {
                 values.erase(X(map_states[timestamp_inI]));
             }
@@ -493,8 +493,11 @@ void ViconGraphSolver::build_problem(bool init_states) {
         // Get the preintegrator (will get recreated with correct noises in propagator)
         CpiV1 preint(0,0,0,0,true);
         bool has_imu = propagator->propagate(time0,time1,bg,ba,preint);
-        assert(has_imu);
-        assert(preint.DT==(time1-time0));
+        if(!has_imu || preint.DT != (time1-time0)) {
+            ROS_ERROR("unable to get IMU readings, invalid preint\n");
+            ROS_ERROR("preint.DT = %.3f | (time1-time0) = %.3f\n", preint.DT, time1-time0);
+            std::exit(EXIT_FAILURE);
+        }
 
         //cout << "dt = " << preint.DT << " | dt_times = " << time1-time0 << endl;
         //cout << "q_k2tau = " << preint.q_k2tau.transpose() << endl;
@@ -503,8 +506,9 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
         // Check if we can do the inverse
         if(std::isnan(preint.P_meas.norm()) || std::isnan(preint.P_meas.inverse().norm())) {
-            ROS_ERROR("R_imu is NAN | R.norm = %.3f | Rinv.norm = %.3f",preint.P_meas.norm(),preint.P_meas.inverse().norm());
-            ROS_ERROR("THIS SHOULD NEVER HAPPEN!@#!@#!@#!@#!#@");
+           ROS_ERROR("R_imu is NAN | R.norm = %.3f | Rinv.norm = %.3f\n",preint.P_meas.norm(),preint.P_meas.inverse().norm());
+            ROS_ERROR("THIS SHOULD NEVER HAPPEN!@#!@#!@#!@#!#@\n");
+            std::exit(EXIT_FAILURE);
         }
 
         // Now create the IMU factor
@@ -544,7 +548,7 @@ void ViconGraphSolver::optimize_problem() {
     opti_config.absoluteErrorTol = 1e-30;
     opti_config.relativeErrorTol = 1e-30;
     opti_config.lambdaUpperBound = 1e20;
-    opti_config.maxIterations = 20;
+    opti_config.maxIterations = 30;
     LevenbergMarquardtOptimizer optimizer(*graph, values, opti_config);
 
     // Setup optimizer (dogleg)

@@ -3,8 +3,8 @@
 
     <!-- dataset name -->
     <!-- V1_01_easy, V1_02_medium, V1_03_difficult, V2_01_easy, V2_02_medium, V2_03_difficult -->
-    <arg name="dataset" value="V2_03_difficult" />
-    <arg name="folder"  value="/home/patrick/datasets/eth" />
+    <arg name="dataset" value="V1_01_easy" />
+    <arg name="folder"  value="/media/patrick/RPNG FLASH 3/euroc_mav" />
 
 
     <!-- MASTER NODE! -->
@@ -13,9 +13,8 @@
 
         <!-- bag topics -->
         <param name="topic_imu"      type="string" value="/imu0" />
-        <param name="topic_cam"      type="string" value="/cam0/image_raw" />
-<!--        <param name="topic_vicon"    type="string" value="/vicon/firefly_sbx/firefly_sbx" /> &lt;!&ndash; vicon room 1 &ndash;&gt;-->
-        <param name="topic_vicon"    type="string" value="vicon/firefly_sbx/firefly_sbx" /> <!-- vicon room 2 -->
+        <param name="topic_vicon"    type="string" value="/vicon/firefly_sbx/firefly_sbx" /> <!-- vicon room 1 -->
+<!--        <param name="topic_vicon"    type="string" value="vicon/firefly_sbx/firefly_sbx" /> &lt;!&ndash; vicon room 2 &ndash;&gt;-->
 
         <!-- bag parameters -->
         <param name="path_bag"    type="string" value="$(arg folder)/$(arg dataset).bag" />
@@ -23,7 +22,8 @@
         <param name="bag_durr"    type="int"    value="-1" />
 
         <!-- save information -->
-        <param name="save2file"          type="bool"   value="true" />
+        <param name="state_freq"         type="int"    value="100" />
+        <param name="save_to_file"       type="bool"   value="true" />
         <param name="stats_path_states"  type="string" value="$(arg folder)/vicon2gt/$(arg dataset)_vicon2gt_states.csv" />
         <param name="stats_path_info"    type="string" value="$(arg folder)/vicon2gt/$(arg dataset)_vicon2gt_info.txt" />
 
@@ -41,7 +41,7 @@
         <!-- vicon sigmas, only used if we don't get odometry -->
         <!-- sigmas: (rx,ry,rz,px,py,pz) -->
         <rosparam param="vicon_sigmas">[1e-3,1e-3,1e-3,1e-2,1e-2,1e-2]</rosparam>
-        <param name="freq_pub_raw_vicon" type="double" value="10.0" />
+        <param name="freq_pub_raw_vicon" type="double" value="1.0" />
         <param name="use_manual_sigmas"  type="bool"   value="true" />
 
         <!-- vi-sensor -->

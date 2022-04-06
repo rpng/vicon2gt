@@ -7,7 +7,7 @@
     <arg name="seed"    default="1" />
 
     <!-- saving to file -->
-    <arg name="save2file"           default="false" />
+    <arg name="save_to_file"        default="false" />
     <arg name="stats_path_states"   default="/tmp/vicon2gt_state.csv" />
     <arg name="stats_path_gt"       default="/tmp/vicon2gt_state_gt.csv" />
     <arg name="stats_path_info"     default="/tmp/vicon2gt_info.txt" />
@@ -29,7 +29,8 @@
         <param name="sim_freq_vicon"    type="double" value="100" />
 
         <!-- save information -->
-        <param name="save2file"            type="bool"   value="$(arg save2file)" />
+        <param name="state_freq"           type="int"    value="20" />
+        <param name="save_to_file"         type="bool"   value="$(arg save_to_file)" />
         <param name="stats_path_states"    type="string" value="$(arg stats_path_states)" />
         <param name="stats_path_states_gt" type="string" value="$(arg stats_path_gt)" />
         <param name="stats_path_info"      type="string" value="$(arg stats_path_info)" />

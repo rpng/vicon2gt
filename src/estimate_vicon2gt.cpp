@@ -52,19 +52,22 @@ int main(int argc, char** argv)
     nh.param<std::string>("topic_vicon", topic_vicon, "/vicon/ironsides/odom");
 
     // Load the bag path
-    bool save2file, use_manual_sigmas;
+    bool save_to_file, use_manual_sigmas;
     std::string path_to_bag, path_states, path_info;
+    int state_freq;
     nh.param<std::string>("path_bag", path_to_bag, "bagfile.bag");
     nh.param<std::string>("stats_path_states", path_states, "gt_states.csv");
     nh.param<std::string>("stats_path_info", path_info, "vicon2gt_info.txt");
-    nh.param<bool>("save2file", save2file, false);
+    nh.param<bool>("save_to_file", save_to_file, save_to_file);
     nh.param<bool>("use_manual_sigmas", use_manual_sigmas, false);
+    nh.param<int>("state_freq", state_freq, 100);
     ROS_INFO("rosbag information...");
     ROS_INFO("    - bag path: %s", path_to_bag.c_str());
     ROS_INFO("    - state path: %s", path_states.c_str());
     ROS_INFO("    - info path: %s", path_info.c_str());
-    ROS_INFO("    - save to file: %d", (int)save2file);
+    ROS_INFO("    - save to file: %d", (int)save_to_file);
     ROS_INFO("    - use manual sigmas: %d", (int)use_manual_sigmas);
+    ROS_INFO("    - state_freq: %d", state_freq);
 
     // Get our start location and how much of the bag we want to play
     // Make the bag duration < 0 to just process to the end of the bag
@@ -142,12 +145,25 @@ int main(int argc, char** argv)
     // Our data storage objects
     std::shared_ptr<Propagator> propagator = std::make_shared<Propagator>(sigma_w,sigma_wb,sigma_a,sigma_ab);
     std::shared_ptr<Interpolator> interpolator = std::make_shared<Interpolator>();
-    std::vector<double> timestamp_cameras;
 
     // Counts on how many measurements we have
     int ct_imu = 0;
-    int ct_cam = 0;
     int ct_vic = 0;
+    double start_time = -1;
+    double end_time = -1;
+
+    // Check if we have any interval with long gap of no vicon measurements
+    // We can still try to process, but if it is too long, then the IMU can drift
+    // Thus just warn the user that there might be an issue!
+    double last_vicon_time = -1;
+    double max_vicon_lost_time = 1.0; // seconds
+    auto warn_amount_vicon_rate = [&](double timestamp, double timestamp_last) {
+      double vicon_dt = timestamp - timestamp_last;
+      if(last_vicon_time == -1 || vicon_dt < max_vicon_lost_time)
+        return;
+      double dist_from_start = timestamp_last - time_init.toSec();
+      ROS_WARN("over %.2f seconds of no vicon!! (starting %.2f sec into bag)", vicon_dt, dist_from_start);
+    };
 
     // Step through the rosbag
     for (const rosbag::MessageInstance& m : view) {
@@ -164,31 +180,6 @@ int main(int argc, char** argv)
             am << s0->linear_acceleration.x, s0->linear_acceleration.y, s0->linear_acceleration.z;
             propagator->feed_imu(s0->header.stamp.toSec(),wm,am);
             ct_imu++;
-        }
-
-        // Handle CAMERA messages
-        // For some reason using m.getTime() seems to not work on all bags?
-        // It seems to happen on bags that have been re-processed already...
-        auto cam_s0 = m.instantiate<geometry_msgs::PoseStamped>();
-        auto cam_s1 = m.instantiate<nav_msgs::Odometry>();
-        auto cam_s2 = m.instantiate<geometry_msgs::TransformStamped>();
-        auto cam_s3 = m.instantiate<geometry_msgs::PoseStamped>();
-        auto cam_s4 = m.instantiate<sensor_msgs::Image>();
-        if (cam_s0 != nullptr && m.getTopic() == topic_cam) {
-            timestamp_cameras.push_back(cam_s0->header.stamp.toSec());
-            ct_cam++;
-        } else if (cam_s1 != nullptr && m.getTopic() == topic_cam) {
-            timestamp_cameras.push_back(cam_s1->header.stamp.toSec());
-            ct_cam++;
-        } else if (cam_s2 != nullptr && m.getTopic() == topic_cam) {
-            timestamp_cameras.push_back(cam_s2->header.stamp.toSec());
-            ct_cam++;
-        } else if (cam_s3 != nullptr && m.getTopic() == topic_cam) {
-            timestamp_cameras.push_back(cam_s3->header.stamp.toSec());
-            ct_cam++;
-        } else if (cam_s4 != nullptr && m.getTopic() == topic_cam) {
-            timestamp_cameras.push_back(cam_s4->header.stamp.toSec());
-            ct_cam++;
         }
 
         // Handle VICON messages
@@ -216,6 +207,15 @@ int main(int argc, char** argv)
             // feed it!
             interpolator->feed_pose(s2->header.stamp.toSec(),q,p,pose_cov.block(3,3,3,3),pose_cov.block(0,0,3,3));
             ct_vic++;
+            // update timestamps
+            if(start_time == -1) {
+              start_time = s2->header.stamp.toSec();
+            }
+            if(start_time != -1) {
+              end_time = s2->header.stamp.toSec();
+            }
+            warn_amount_vicon_rate(s2->header.stamp.toSec(), last_vicon_time);
+            last_vicon_time = s2->header.stamp.toSec();
         }
 
         // Handle VICON messages
@@ -229,6 +229,15 @@ int main(int argc, char** argv)
             // feed it!
             interpolator->feed_pose(s3->header.stamp.toSec(),q,p,R_q,R_p);
             ct_vic++;
+            // update timestamps
+            if(start_time == -1) {
+              start_time = s3->header.stamp.toSec();
+            }
+            if(start_time != -1) {
+              end_time = s3->header.stamp.toSec();
+            }
+            warn_amount_vicon_rate(s3->header.stamp.toSec(), last_vicon_time);
+            last_vicon_time = s3->header.stamp.toSec();
         }
 
         // Handle VICON messages
@@ -242,9 +251,29 @@ int main(int argc, char** argv)
             // feed it!
             interpolator->feed_pose(s4->header.stamp.toSec(),q,p,R_q,R_p);
             ct_vic++;
+            // update timestamps
+            if(start_time == -1) {
+              start_time = s4->header.stamp.toSec();
+            }
+            if(start_time != -1) {
+              end_time = s4->header.stamp.toSec();
+            }
+            warn_amount_vicon_rate(s4->header.stamp.toSec(), last_vicon_time);
+            last_vicon_time = s4->header.stamp.toSec();
         }
 
+    }
 
+    // Create our camera timestamps at the requested fix frequency
+    int ct_cam = 0;
+    std::vector<double> timestamp_cameras;
+    if(start_time != -1 && end_time != -1 && start_time < end_time) {
+      double temp_time = start_time;
+      while(temp_time < end_time) {
+        timestamp_cameras.push_back(temp_time);
+        temp_time += 1.0 / (double)state_freq;
+        ct_cam++;
+      }
     }
 
     // Print out how many we have loaded
@@ -268,7 +297,7 @@ int main(int argc, char** argv)
     solver.visualize();
 
     // Finally, save to file all the information
-    if(save2file) {
+    if(save_to_file) {
         solver.write_to_file(path_states,path_info);
     }
 
