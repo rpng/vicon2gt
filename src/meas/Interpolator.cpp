@@ -88,8 +88,8 @@ bool Interpolator::get_pose(double timestamp, Eigen::Matrix<double, 4, 1> &q, Ei
     R.setZero();
     // R.block(0,0,3,3) = poseEXACT.R_q;
     // R.block(3,3,3,3) = poseEXACT.R_p;
-    // ROS_ERROR("[INTERPOLATOR]: UNABLE TO FIND BOUNDING POSES, %d, %d",bounds.first==pose_data.end(),bounds.second==pose_data.end());
-    // ROS_ERROR("[INTERPOLATOR]: tmeas = %.9f | time0 = %.9f | time1 = %.9f", timestamp, time0, time1);
+    // ROS_ERROR("[INTER]: UNABLE TO FIND BOUNDING POSES, %d, %d",bounds.first==pose_data.end(),bounds.second==pose_data.end());
+    // ROS_ERROR("[INTER]: tmeas = %.9f | time0 = %.9f | time1 = %.9f", timestamp, time0, time1);
     return false;
   }
   bounds.first--;
@@ -111,6 +111,17 @@ bool Interpolator::get_pose(double timestamp, Eigen::Matrix<double, 4, 1> &q, Ei
   // Else set our bounds as the bounds our binary search found
   POSEDATA pose0 = *bounds.first;
   POSEDATA pose1 = *bounds.second;
+
+  // Return failure if the poses are too far away
+  // NOTE: Right now we just say that the poses need to be at least 5 second away
+  // NOTE: This might cause failure if low frequency vicon rates, but 5 second is pretty slow...
+  // NOTE: The pose estimate is only really used for initial guess, we will be stricter on accepting info for the factor...
+  double thresh_sec = 5.0;
+  if (std::abs(timestamp - pose0.timestamp) > thresh_sec || std::abs(timestamp - pose1.timestamp) > thresh_sec) {
+    // ROS_ERROR("[INTER]: UNABLE TO FIND BOUNDING POSES, %d, %d", bounds.first == pose_data.end(), bounds.second == pose_data.end());
+    // ROS_ERROR("[INTER]: tmeas = %.9f | time0 = %.9f | time1 = %.9f", timestamp, pose0.timestamp, pose1.timestamp);
+    return false;
+  }
 
   // Our lamda time-distance fraction
   double lambda = (timestamp - pose0.timestamp) / (pose1.timestamp - pose0.timestamp);
@@ -190,8 +201,8 @@ bool Interpolator::get_pose_with_jacobian(double timestamp, Eigen::Matrix<double
     R.setZero();
     // R.block(0,0,3,3) = poseEXACT.R_q;
     // R.block(3,3,3,3) = poseEXACT.R_p;
-    // ROS_ERROR("[INTERPOLATOR]: UNABLE TO FIND BOUNDING POSES, %d, %d",bounds.first==pose_data.end(),bounds.second==pose_data.end());
-    // ROS_ERROR("[INTERPOLATOR]: tmeas = %.9f | time0 = %.9f | time1 = %.9f", timestamp, time0, time1);
+    // ROS_ERROR("[INTER]: UNABLE TO FIND BOUNDING POSES, %d, %d",bounds.first==pose_data.end(),bounds.second==pose_data.end());
+    // ROS_ERROR("[INTER]: tmeas = %.9f | time0 = %.9f | time1 = %.9f", timestamp, time0, time1);
     return false;
   }
   bounds.first--;
@@ -213,6 +224,16 @@ bool Interpolator::get_pose_with_jacobian(double timestamp, Eigen::Matrix<double
   // Else set our bounds as the bounds our binary search found
   POSEDATA pose0 = *bounds.first;
   POSEDATA pose1 = *bounds.second;
+
+  // Return failure if the poses are too far away
+  // NOTE: this is more strict since we don't want to use vicon measurements that are too far away (5hz)
+  // NOTE: the factor will not add any information if we return false, so this is ok to be stricter here...
+  double thresh_sec = 0.1;
+  if (std::abs(timestamp - pose0.timestamp) > thresh_sec || std::abs(timestamp - pose1.timestamp) > thresh_sec) {
+    // ROS_ERROR("[INTER]: UNABLE TO FIND BOUNDING POSES, %d, %d", bounds.first == pose_data.end(), bounds.second == pose_data.end());
+    // ROS_ERROR("[INTER]: tmeas = %.9f | time0 = %.9f | time1 = %.9f", timestamp, pose0.timestamp, pose1.timestamp);
+    return false;
+  }
 
   // Our lamda time-distance fraction
   double lambda = (timestamp - pose0.timestamp) / (pose1.timestamp - pose0.timestamp);
