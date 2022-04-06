@@ -19,21 +19,18 @@
 #ifndef RPYOPS_H
 #define RPYOPS_H
 
-
 #include <Eigen/Eigen>
-
-
 
 /**
  * @brief Construct rotation matrix from given roll
  * @param t roll angle
  */
 static inline Eigen::Matrix<double, 3, 3> rot_x(double t) {
-    Eigen::Matrix<double, 3, 3> r;
-    double ct = cos(t);
-    double st = sin(t);
-    r << 1.0, 0.0, 0.0, 0.0, ct, -st, 0.0, st, ct;
-    return r;
+  Eigen::Matrix<double, 3, 3> r;
+  double ct = cos(t);
+  double st = sin(t);
+  r << 1.0, 0.0, 0.0, 0.0, ct, -st, 0.0, st, ct;
+  return r;
 }
 
 /**
@@ -41,11 +38,11 @@ static inline Eigen::Matrix<double, 3, 3> rot_x(double t) {
  * @param t pitch angle
  */
 static inline Eigen::Matrix<double, 3, 3> rot_y(double t) {
-    Eigen::Matrix<double, 3, 3> r;
-    double ct = cos(t);
-    double st = sin(t);
-    r << ct, 0.0, st, 0.0, 1.0, 0.0, -st, 0.0, ct;
-    return r;
+  Eigen::Matrix<double, 3, 3> r;
+  double ct = cos(t);
+  double st = sin(t);
+  r << ct, 0.0, st, 0.0, 1.0, 0.0, -st, 0.0, ct;
+  return r;
 }
 
 /**
@@ -53,11 +50,11 @@ static inline Eigen::Matrix<double, 3, 3> rot_y(double t) {
  * @param t yaw angle
  */
 static inline Eigen::Matrix<double, 3, 3> rot_z(double t) {
-    Eigen::Matrix<double, 3, 3> r;
-    double ct = cos(t);
-    double st = sin(t);
-    r << ct, -st, 0.0, st, ct, 0.0, 0.0, 0.0, 1.0;
-    return r;
+  Eigen::Matrix<double, 3, 3> r;
+  double ct = cos(t);
+  double st = sin(t);
+  r << ct, -st, 0.0, st, ct, 0.0, 0.0, 0.0, 1.0;
+  return r;
 }
 
 /**
@@ -69,11 +66,11 @@ static inline Eigen::Matrix<double, 3, 3> rot_z(double t) {
  * @return [roll,pitch,yaw] values
  */
 static inline Eigen::Matrix<double, 3, 1> rot2rpy(const Eigen::Matrix<double, 3, 3> &rot) {
-    Eigen::Matrix<double, 3, 1> rpy;
-    rpy(2) = atan2(rot(1,0),rot(0,0));
-    rpy(1) = atan2(-rot(2,0),sqrt(rot(2,1)*rot(2,1)+rot(2,2)*rot(2,2)));
-    rpy(0) = atan2(rot(2,1),rot(2,2));
-    return rpy;
+  Eigen::Matrix<double, 3, 1> rpy;
+  rpy(2) = atan2(rot(1, 0), rot(0, 0));
+  rpy(1) = atan2(-rot(2, 0), sqrt(rot(2, 1) * rot(2, 1) + rot(2, 2) * rot(2, 2)));
+  rpy(0) = atan2(rot(2, 1), rot(2, 2));
+  return rpy;
 }
 
 /**
@@ -82,11 +79,11 @@ static inline Eigen::Matrix<double, 3, 1> rot2rpy(const Eigen::Matrix<double, 3,
  * @return Equivilent rotation within the range [-pi,pi]
  */
 static inline double wrap2pi(double theta) {
-    while(theta > M_PI) theta -= 2*M_PI;
-    while(theta < -M_PI) theta += 2*M_PI;
-    return theta;
+  while (theta > M_PI)
+    theta -= 2 * M_PI;
+  while (theta < -M_PI)
+    theta += 2 * M_PI;
+  return theta;
 }
 
-
-#endif //RPYOPS_H
-
+#endif // RPYOPS_H

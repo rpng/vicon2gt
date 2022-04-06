@@ -21,7 +21,6 @@
 
 #include <Eigen/Eigen>
 
-
 /**
  * @brief Configuration object that informs the factors if they need to compute Jacobians.
  *
@@ -32,16 +31,14 @@
 struct GtsamConfig {
 
 public:
+  /// If we want to estimate the time offset between VICON and IMU
+  bool estimate_vicon_imu_toff = true;
 
-    /// If we want to estimate the time offset between VICON and IMU
-    bool estimate_vicon_imu_toff = true;
+  /// If we want to estimate the orientation between VICON and IMU
+  bool estimate_vicon_imu_ori = true;
 
-    /// If we want to estimate the orientation between VICON and IMU
-    bool estimate_vicon_imu_ori = true;
-
-    /// If we want to estimate the position between VICON and IMU
-    bool estimate_vicon_imu_pos = true;
-
+  /// If we want to estimate the position between VICON and IMU
+  bool estimate_vicon_imu_pos = true;
 };
 
-#endif //GTSAMCONFIG_H
+#endif // GTSAMCONFIG_H

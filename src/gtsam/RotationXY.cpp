@@ -18,34 +18,22 @@
  */
 #include "RotationXY.h"
 
-
 using namespace std;
 using namespace gtsam;
 
-
-
 RotationXY gtsam::RotationXY::retract(const Vector2 &xi) const {
 
-    // Calculate the update theta x y values
-    double theta_new_x = wrap2pi(theta_x + wrap2pi(xi(0)));
-    double theta_new_y = wrap2pi(theta_y + wrap2pi(xi(1)));
+  // Calculate the update theta x y values
+  double theta_new_x = wrap2pi(theta_x + wrap2pi(xi(0)));
+  double theta_new_y = wrap2pi(theta_y + wrap2pi(xi(1)));
 
-    // Reconstruct and return this new state
-    return RotationXY(theta_new_x, theta_new_y);
-
+  // Reconstruct and return this new state
+  return RotationXY(theta_new_x, theta_new_y);
 }
-
 
 Vector2 gtsam::RotationXY::localCoordinates(const RotationXY &state) const {
-    Vector2 vec;
-    vec(0) = theta_x;
-    vec(1) = theta_y;
-    return vec;
+  Vector2 vec;
+  vec(0) = theta_x;
+  vec(1) = theta_y;
+  return vec;
 }
-
-
-
-
-
-
-

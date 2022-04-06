@@ -19,93 +19,73 @@
 #ifndef GTSAM_ROTATIONXY_H
 #define GTSAM_ROTATIONXY_H
 
-
 #include <Eigen/Eigen>
-#include <gtsam/base/Vector.h>
 #include <gtsam/base/Manifold.h>
+#include <gtsam/base/Vector.h>
 #include <gtsam/nonlinear/NonlinearFactor.h>
 
 #include "utils/rpy_ops.h"
 
-
 namespace gtsam {
 
-    /**
-     * @brief A 3d rotation with yaw fixed at zero
-     * Estimate a 2 dof rotation => Rotz(0) * Roty * Rotx
-     */
-    class RotationXY {
-    private:
+/**
+ * @brief A 3d rotation with yaw fixed at zero
+ * Estimate a 2 dof rotation => Rotz(0) * Roty * Rotx
+ */
+class RotationXY {
+private:
+  double theta_x; ///< Rotation about the x-axis
+  double theta_y; ///< Rotation about the y-axis
 
-        double theta_x; ///< Rotation about the x-axis
-        double theta_y; ///< Rotation about the y-axis
+public:
+  enum { dimension = 2 };
 
-    public:
+  /// Default constructor
+  RotationXY() : theta_x(0), theta_y(0) {}
 
-        enum {
-            dimension = 2
-        };
+  /// Construct from RotationXY directly
+  RotationXY(const RotationXY &obj) {
+    this->theta_x = obj.theta_x;
+    this->theta_y = obj.theta_y;
+  }
 
-        /// Default constructor
-        RotationXY() : theta_x(0), theta_y(0) { }
+  /// Construct from two angles
+  RotationXY(const double &thetax, const double &thetay) : theta_x(thetax), theta_y(thetay) {}
 
-        /// Construct from RotationXY directly
-        RotationXY(const RotationXY& obj) {
-            this->theta_x = obj.theta_x;
-            this->theta_y = obj.theta_y;
-        }
+  /// Return x rotation theta.
+  double thetax() const { return theta_x; }
 
-        /// Construct from two angles
-        RotationXY(const double& thetax, const double& thetay) : theta_x(thetax), theta_y(thetay) { }
+  /// Return y rotation theta.
+  double thetay() const { return theta_y; }
 
-        /// Return x rotation theta.
-        double thetax() const {
-            return theta_x;
-        }
+  /// Return full 3D rotation
+  Eigen::Matrix3d rot() const { return rot_y(theta_y) * rot_x(theta_x); }
 
-        /// Return y rotation theta.
-        double thetay() const {
-            return theta_y;
-        }
+  /// Retract with optional derivatives (given correction)
+  RotationXY retract(const Vector2 &xi) const;
 
-        /// Return full 3D rotation
-        Eigen::Matrix3d rot() const {
-            return rot_y(theta_y)*rot_x(theta_x);
-        }
+  /// Converting function from our over parameterization to the local representation (expanding about the current node's tangent space)
+  Vector2 localCoordinates(const RotationXY &state) const;
 
-        /// Retract with optional derivatives (given correction)
-        RotationXY retract(const Vector2& xi) const;
+  /// How this node gets printed in the ostream
+  GTSAM_EXPORT
+  friend std::ostream &operator<<(std::ostream &os, const RotationXY &state) {
+    os << "thetax:[" << state.thetax() << "]'" << std::endl;
+    os << "thetay:[" << state.thetay() << "]'" << std::endl;
+    return os;
+  }
 
-        /// Converting function from our over parameterization to the local representation (expanding about the current node's tangent space)
-        Vector2 localCoordinates(const RotationXY& state) const;
+  /// Print function for this node
+  void print(const std::string &s = "") const { std::cout << s << *this << std::endl; }
 
-        /// How this node gets printed in the ostream
-        GTSAM_EXPORT
-        friend std::ostream &operator<<(std::ostream &os, const RotationXY& state) {
-            os << "thetax:[" << state.thetax() << "]'" << std::endl;
-            os << "thetay:[" << state.thetay() << "]'" << std::endl;
-            return os;
-        }
+  /// Equals function to compare this and another JPLNavState
+  bool equals(const RotationXY &other, double tol = 1e-8) const {
+    return gtsam::equal(theta_x, other.theta_x, tol) && gtsam::equal(theta_y, other.theta_y, tol);
+  }
+};
 
-        /// Print function for this node
-        void print(const std::string& s = "") const {
-            std::cout << s << *this << std::endl;
-        }
-
-        /// Equals function to compare this and another JPLNavState
-        bool equals(const RotationXY& other, double tol = 1e-8) const {
-            return gtsam::equal(theta_x, other.theta_x, tol)
-                && gtsam::equal(theta_y, other.theta_y, tol);
-        }
-
-
-    };
-
-    template<>
-    struct traits<RotationXY> : internal::Manifold<RotationXY> { };
-
+template <> struct traits<RotationXY> : internal::Manifold<RotationXY> {};
 
 } // namespace gtsam
-
 
 #endif /* GTSAM_ROTATIONXY_H */

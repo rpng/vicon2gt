@@ -19,10 +19,9 @@
 #ifndef SIMULATOR_H
 #define SIMULATOR_H
 
-
 #include <fstream>
-#include <sstream>
 #include <random>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
@@ -35,7 +34,6 @@
 #include "utils/quat_ops.h"
 #include "utils/rpy_ops.h"
 
-
 /**
  * @brief Master simulator class that generated vicon-inertial measurements
  *
@@ -47,130 +45,118 @@
 class Simulator {
 
 public:
+  /**
+   * @brief Default constructor, will load all configuration variables
+   * @param params_ SimulationParams parameters. Should have already been loaded from cmd.
+   */
+  Simulator(const SimulatorParams &params_);
 
+  /**
+   * @brief Returns if we are actively simulating
+   * @return True if we still have simulation data
+   */
+  bool ok() { return is_running; }
 
-    /**
-     * @brief Default constructor, will load all configuration variables
-     * @param params_ SimulationParams parameters. Should have already been loaded from cmd.
-     */
-    Simulator(const SimulatorParams& params_);
+  /**
+   * @brief Returns simulator parameters
+   */
+  SimulatorParams get_params() { return params; }
 
-    /**
-     * @brief Returns if we are actively simulating
-     * @return True if we still have simulation data
-     */
-    bool ok() {
-        return is_running;
-    }
+  /**
+   * @brief Get the simulation state at a specified timestep
+   * @param desired_time Timestamp we want to get the state at
+   * @param imustate State in the MSCKF ordering: [time(sec),q_VtoI,p_IinV,v_IinV,b_gyro,b_accel]
+   * @return True if we have a state
+   */
+  bool get_state_in_vicon(double desired_time, Eigen::Matrix<double, 17, 1> &imustate);
 
-    /**
-     * @brief Returns simulator parameters
-     */
-    SimulatorParams get_params() {
-        return params;
-    }
+  /**
+   * @brief Gets the next IMU reading if we have one.
+   * @param time_imu Time that this measurement occurred at
+   * @param wm Angular velocity measurement in the inertial frame
+   * @param am Linear velocity in the inertial frame
+   * @return True if we have a measurement
+   */
+  bool get_next_imu(double &time_imu, Eigen::Vector3d &wm, Eigen::Vector3d &am);
 
-    /**
-     * @brief Get the simulation state at a specified timestep
-     * @param desired_time Timestamp we want to get the state at
-     * @param imustate State in the MSCKF ordering: [time(sec),q_VtoI,p_IinV,v_IinV,b_gyro,b_accel]
-     * @return True if we have a state
-     */
-    bool get_state_in_vicon(double desired_time, Eigen::Matrix<double,17,1> &imustate);
+  /**
+   * @brief Gets the next CAMERA reading if we have one.
+   * @param time_vicon Time that this measurement occurred at
+   * @return True if we have a measurement
+   */
+  bool get_next_cam(double &time_camera);
 
-    /**
-     * @brief Gets the next IMU reading if we have one.
-     * @param time_imu Time that this measurement occurred at
-     * @param wm Angular velocity measurement in the inertial frame
-     * @param am Linear velocity in the inertial frame
-     * @return True if we have a measurement
-     */
-    bool get_next_imu(double &time_imu, Eigen::Vector3d &wm, Eigen::Vector3d &am);
-
-    /**
-     * @brief Gets the next CAMERA reading if we have one.
-     * @param time_vicon Time that this measurement occurred at
-     * @return True if we have a measurement
-     */
-    bool get_next_cam(double &time_camera);
-
-    /**
-     * @brief Gets the next VICON reading if we have one.
-     * @param time_vicon Time that this measurement occurred at
-     * @param q_VtoB Rotation from vicon frame to the vicon marker body frame
-     * @param p_BinV Position of vicon marker body frame in vicon frame
-     * @return True if we have a measurement
-     */
-    bool get_next_vicon(double &time_vicon, Eigen::Vector4d &q_VtoB, Eigen::Vector3d &p_BinV);
-
+  /**
+   * @brief Gets the next VICON reading if we have one.
+   * @param time_vicon Time that this measurement occurred at
+   * @param q_VtoB Rotation from vicon frame to the vicon marker body frame
+   * @param p_BinV Position of vicon marker body frame in vicon frame
+   * @return True if we have a measurement
+   */
+  bool get_next_vicon(double &time_vicon, Eigen::Vector4d &q_VtoB, Eigen::Vector3d &p_BinV);
 
 protected:
+  /**
+   * @brief This will load the trajectory into memory.
+   * @param path_traj Path to the trajectory file that we want to read in.
+   */
+  void load_data(std::string path_traj);
 
+  //===================================================================
+  // Configuration variables
+  //===================================================================
 
-    /**
-     * @brief This will load the trajectory into memory.
-     * @param path_traj Path to the trajectory file that we want to read in.
-     */
-    void load_data(std::string path_traj);
+  /// Parameters that we use to generate our simulation
+  SimulatorParams params;
 
-    //===================================================================
-    // Configuration variables
-    //===================================================================
+  //===================================================================
+  // State related variables
+  //===================================================================
 
-    /// Parameters that we use to generate our simulation
-    SimulatorParams params;
+  /// Our loaded trajectory data (timestamp(s), q_GtoI, p_IinG)
+  std::vector<Eigen::VectorXd> traj_data;
 
-    //===================================================================
-    // State related variables
-    //===================================================================
+  /// Our b-spline trajectory
+  BsplineSE3 spline;
 
-    /// Our loaded trajectory data (timestamp(s), q_GtoI, p_IinG)
-    std::vector<Eigen::VectorXd> traj_data;
+  /// Mersenne twister PRNG for measurements (IMU)
+  std::mt19937 gen_meas_imu;
 
-    /// Our b-spline trajectory
-    BsplineSE3 spline;
+  /// Mersenne twister PRNG for measurements (VICON)
+  std::mt19937 gen_meas_vicon;
 
-    /// Mersenne twister PRNG for measurements (IMU)
-    std::mt19937 gen_meas_imu;
+  /// Mersenne twister PRNG for state perturbations
+  std::mt19937 gen_state_perturb;
 
-    /// Mersenne twister PRNG for measurements (VICON)
-    std::mt19937 gen_meas_vicon;
+  /// If our simulation is running
+  bool is_running;
 
-    /// Mersenne twister PRNG for state perturbations
-    std::mt19937 gen_state_perturb;
+  //===================================================================
+  // Simulation specific variables
+  //===================================================================
 
-    /// If our simulation is running
-    bool is_running;
+  /// Current timestamp of the system
+  double timestamp;
 
-    //===================================================================
-    // Simulation specific variables
-    //===================================================================
+  /// Last time we had an IMU reading
+  double timestamp_last_imu;
 
-    /// Current timestamp of the system
-    double timestamp;
+  /// Last time we had an CAMERA reading
+  double timestamp_last_cam;
 
-    /// Last time we had an IMU reading
-    double timestamp_last_imu;
+  /// Last time we had an VICON reading
+  double timestamp_last_vicon;
 
-    /// Last time we had an CAMERA reading
-    double timestamp_last_cam;
+  /// Our running acceleration bias
+  Eigen::Vector3d true_bias_accel = Eigen::Vector3d::Zero();
 
-    /// Last time we had an VICON reading
-    double timestamp_last_vicon;
+  /// Our running gyroscope bias
+  Eigen::Vector3d true_bias_gyro = Eigen::Vector3d::Zero();
 
-    /// Our running acceleration bias
-    Eigen::Vector3d true_bias_accel = Eigen::Vector3d::Zero();
-
-    /// Our running gyroscope bias
-    Eigen::Vector3d true_bias_gyro = Eigen::Vector3d::Zero();
-
-    // Our history of true biases
-    std::vector<double> hist_true_bias_time;
-    std::vector<Eigen::Vector3d> hist_true_bias_accel;
-    std::vector<Eigen::Vector3d> hist_true_bias_gyro;
-
-
+  // Our history of true biases
+  std::vector<double> hist_true_bias_time;
+  std::vector<Eigen::Vector3d> hist_true_bias_accel;
+  std::vector<Eigen::Vector3d> hist_true_bias_gyro;
 };
 
-
-#endif //SIMULATOR_H
+#endif // SIMULATOR_H
