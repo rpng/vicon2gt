@@ -501,10 +501,13 @@ void ViconGraphSolver::optimize_problem() {
   ROS_INFO("[VICON-GRAPH]: graph nodes - %d", (int)graph->keys().size());
 
   // Setup the optimizer (levenberg)
+  // Use METIS ordering to fix memory issue for large number of nodes
+  // See: https://bitbucket.org/gtborg/gtsam/issues/369/segfault-when-running-on-data-sets-with
   LevenbergMarquardtParams opti_config;
   opti_config.verbosity = NonlinearOptimizerParams::Verbosity::TERMINATION;
   // config.verbosityLM = LevenbergMarquardtParams::VerbosityLM::SUMMARY;
   // config.verbosityLM = LevenbergMarquardtParams::VerbosityLM::TERMINATION;
+  opti_config.orderingType = Ordering::OrderingType::METIS;
   opti_config.absoluteErrorTol = 1e-30;
   opti_config.relativeErrorTol = 1e-30;
   opti_config.lambdaUpperBound = 1e20;
