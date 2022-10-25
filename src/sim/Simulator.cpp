@@ -32,7 +32,7 @@ Simulator::Simulator(const SimulatorParams &params_) {
   w_vec << 0.1 * w(r), 0.1 * w(r), 0.1 * w(r);
   params.R_BtoI = exp_so3(w_vec);
   params.p_BinI << 0.2 * w(r), 0.2 * w(r), 0.2 * w(r);
-  params.viconimu_dt = 0.05 * w(r);
+  //params.viconimu_dt = 0.05 * w(r);
 
   // Random gravity and vicon frame alignment
   params.R_GtoV = rot_y(0.1 * M_PI * w(r)) * rot_x(0.1 * M_PI * w(r));
@@ -212,12 +212,16 @@ bool Simulator::get_next_cam(double &time_camera) {
 bool Simulator::get_next_vicon(double &time_vicon, Eigen::Vector4d &q_VtoB, Eigen::Vector3d &p_BinV) {
 
   // Return if the camera measurement should go before us
+  // no other imu and camera, vicon should be the next measurement
   if (timestamp_last_imu + 1.0 / params.sim_freq_imu < timestamp_last_vicon + 1.0 / params.sim_freq_vicon ||
       timestamp_last_cam + 1.0 / params.sim_freq_cam < timestamp_last_vicon + 1.0 / params.sim_freq_vicon)
     return false;
 
   // Else lets do a new measurement!!!
-  timestamp_last_vicon += 1.0 / params.sim_freq_vicon;
+  timestamp_last_vicon += 1.0 / params.sim_freq_vicon; // moves the time forward
+  // params.sim_freq_vicon = simga_hz * w(gen_meas_vicon) + sim_freq_vico_orig;
+  // absolute value
+  // params.sim_freq_vicon = 100 * w(gen_meas_vicon) + 400;
   timestamp = timestamp_last_vicon;
   time_vicon = timestamp_last_vicon - params.viconimu_dt;
 

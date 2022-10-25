@@ -390,72 +390,113 @@ void ViconGraphSolver::build_problem(bool init_states) {
   ROS_INFO("[BUILD]: current time offset is %.4f", values.at<Vector1>(T(0))(0));
 
   // Loop through each camera time and construct the graph
+  double time_last = 0;
+  Eigen::Matrix<double, 3, 1> v_IinV_last = Eigen::Matrix<double, 3, 1>::Zero();
   auto it1 = timestamp_cameras.begin();
-  while (it1 != timestamp_cameras.end()) {
+  while (it1 != timestamp_cameras.end()) { // TODO: change logic, don't add vicon factor if delay is large 
+  // experiment with the IMU
 
     // If ros is wants us to stop, break out
     if (!ros::ok())
       break;
 
+    // for the first ever pose we need to ensure that we need a vicon to recover first ever position and velocity
+    // thus we delete all the times that are before the first vicon reading
+    // Skip the first ever pose (preintegration)
+    if (it1 == timestamp_cameras.begin()) {
+
+      // First get the vicon pose at the current time
+      Eigen::Matrix<double, 4, 1> q_VtoB;
+      Eigen::Matrix<double, 3, 1> p_BinV;
+      Eigen::Matrix<double, 6, 6> R_vicon;
+      bool has_vicon1 = interpolator->get_pose(timestamp_inV - 1.0, q_VtoB, p_BinV, R_vicon); // vicon 1s past state
+      bool has_vicon2 = interpolator->get_pose(timestamp_inV + 1.0, q_VtoB, p_BinV, R_vicon); // vicon future
+      bool has_vicon3 = interpolator->get_pose(timestamp_inV, q_VtoB, p_BinV, R_vicon); // vicon current
+
+      // Skip if we don't have a vicon measurement for this pose
+      if (!has_vicon1 || !has_vicon2 || !has_vicon3) {
+        ROS_WARN_THROTTLE(0.1, "    - skipping camera time %.9f (no vicon pose found) [throttled]", timestamp_inI);
+        if (values.find(X(map_states[timestamp_inI])) != values.end()) {
+          values.erase(X(map_states[timestamp_inI]));
+        }
+        it1 = timestamp_cameras.erase(it1); 
+        continue;
+      }
+
+      // Check if we can do the inverse
+      if (std::isnan(R_vicon.norm()) || std::isnan(R_vicon.inverse().norm())) {
+        ROS_WARN_THROTTLE(0.1, "    - skipping camera time %.9f (R.norm = %.3f | Rinv.norm = %.3f) [throttled]", timestamp_inI,
+                          R_vicon.norm(), R_vicon.inverse().norm());
+        if (values.find(X(map_states[timestamp_inI])) != values.end()) {
+          values.erase(X(map_states[timestamp_inI]));
+        }
+        it1 = timestamp_cameras.erase(it1);
+        continue;
+      }
+
+    // create the first ever pose that in the future will be connected to teh next pose using the preintegration
+    if (init_states) {
+      Eigen::Matrix<double, 4, 1> q_VtoI = quat_multiply(rot_2_quat(init_R_BtoI), q_VtoB);
+      Eigen::Matrix<double, 3, 1> bg = Eigen::Matrix<double, 3, 1>::Zero();
+      Eigen::Matrix<double, 3, 1> v_IinV = Eigen::Matrix<double, 3, 1>::Zero();
+      v_IinV_last = v_IinV;
+      Eigen::Matrix<double, 3, 1> ba = Eigen::Matrix<double, 3, 1>::Zero();
+      Eigen::Matrix<double, 3, 1> p_IinV = p_BinV - quat_2_Rot(Inv(q_VtoB)) * init_R_BtoI.transpose() * init_p_BinI; // IK (given), IK+1 (call interpolator)
+      JPLNavState imu_state(timestamp_inI, q_VtoI, bg, v_IinV, ba, p_IinV);
+      values.insert(X(map_states[timestamp_inI]), imu_state);
+    }
+
+      it1++;
+      continue;
+    }
+
     // Current image time
     double timestamp_inI = *it1;
-    double timestamp_inV = timestamp_inI - values.at<Vector1>(T(0))(0);
+    double timestamp_inV = timestamp_inI - values.at<Vector1>(T(0))(0); // time in the vicon clock
 
     // First get the vicon pose at the current time
     Eigen::Matrix<double, 4, 1> q_VtoB;
     Eigen::Matrix<double, 3, 1> p_BinV;
     Eigen::Matrix<double, 6, 6> R_vicon;
-    bool has_vicon1 = interpolator->get_pose(timestamp_inV - 1.0, q_VtoB, p_BinV, R_vicon);
-    bool has_vicon2 = interpolator->get_pose(timestamp_inV + 1.0, q_VtoB, p_BinV, R_vicon);
-    bool has_vicon3 = interpolator->get_pose(timestamp_inV, q_VtoB, p_BinV, R_vicon);
+    bool has_vicon1 = interpolator->get_pose(timestamp_inV - 1.0, q_VtoB, p_BinV, R_vicon); // vicon 1s past state
+    bool has_vicon2 = interpolator->get_pose(timestamp_inV + 1.0, q_VtoB, p_BinV, R_vicon); // vicon future
+    bool has_vicon3 = interpolator->get_pose(timestamp_inV, q_VtoB, p_BinV, R_vicon); // vicon current 
 
-    // Skip if we don't have a vicon measurement for this pose
-    if (!has_vicon1 || !has_vicon2 || !has_vicon3) {
-      ROS_WARN_THROTTLE(0.1, "    - skipping camera time %.9f (no vicon pose found) [throttled]", timestamp_inI);
-      if (values.find(X(map_states[timestamp_inI])) != values.end()) {
-        values.erase(X(map_states[timestamp_inI]));
-      }
-      it1 = timestamp_cameras.erase(it1);
-      continue;
-    }
 
-    // Check if we can do the inverse
-    if (std::isnan(R_vicon.norm()) || std::isnan(R_vicon.inverse().norm())) {
-      ROS_WARN_THROTTLE(0.1, "    - skipping camera time %.9f (R.norm = %.3f | Rinv.norm = %.3f) [throttled]", timestamp_inI,
-                        R_vicon.norm(), R_vicon.inverse().norm());
-      if (values.find(X(map_states[timestamp_inI])) != values.end()) {
-        values.erase(X(map_states[timestamp_inI]));
-      }
-      it1 = timestamp_cameras.erase(it1);
-      continue;
-    }
-
-    // Now initialize the current pose of the IMU
+    // Now initialize the current pose of the IMU 
+    // TODO: what to do with these states 
+    // TODO: init velocities better initiliazation
+    // if t = 0, it1 == timestamp_cameras.begin() delete the sates of the VICON 
+    // double time0 = *(it1 - 1);
+    // double time1 = *(it1);
+    // double time2 = *(it1 + 1); //k + 1
+    // use v_IinV_last to preintegrate to next vel if we don't have vicon measurement 
     if (init_states) {
       Eigen::Matrix<double, 4, 1> q_VtoI = quat_multiply(rot_2_quat(init_R_BtoI), q_VtoB);
       Eigen::Matrix<double, 3, 1> bg = Eigen::Matrix<double, 3, 1>::Zero();
       Eigen::Matrix<double, 3, 1> v_IinV = Eigen::Matrix<double, 3, 1>::Zero();
       Eigen::Matrix<double, 3, 1> ba = Eigen::Matrix<double, 3, 1>::Zero();
-      Eigen::Matrix<double, 3, 1> p_IinV = p_BinV - quat_2_Rot(Inv(q_VtoB)) * init_R_BtoI.transpose() * init_p_BinI;
+      Eigen::Matrix<double, 3, 1> p_IinV = p_BinV - quat_2_Rot(Inv(q_VtoB)) * init_R_BtoI.transpose() * init_p_BinI; // IK (given), IK+1 (call interpolator)
       JPLNavState imu_state(timestamp_inI, q_VtoI, bg, v_IinV, ba, p_IinV);
       values.insert(X(map_states[timestamp_inI]), imu_state);
     }
 
     // Add the vicon measurement to this pose
-    MeasBased_ViconPoseTimeoffsetFactor factor_vicon(X(map_states[timestamp_inI]), C(0), C(1), T(0), interpolator, config);
-    graph->add(factor_vicon);
-
-    // Skip the first ever pose
-    if (it1 == timestamp_cameras.begin()) {
-      it1++;
-      continue;
+    // interpolator contains all the measurements
+    //if (std::isnan(R_vicon.norm()) || std::isnan(R_vicon.inverse().norm()))
+    if (has_vicon1 && has_vicon2 && has_vicon3 && !std::isnan(R_vicon.norm()) && !std::isnan(R_vicon.inverse().norm()) ) {
+      v_IinV_last = v_IinV;
+      MeasBased_ViconPoseTimeoffsetFactor factor_vicon(X(map_states[timestamp_inI]), C(0), C(1), T(0), interpolator, config);
+      graph->add(factor_vicon);
     }
+
 
     // Now add preintegration between this state and the next
     // We do a silly hack since inside of the propagator we create the preintegrator
     // So we just randomly assign noises here which will be overwritten in the propagator
     double time0 = *(it1 - 1);
     double time1 = *(it1);
+    double time2 = *(it1 + 1); //k + 1
 
     // Get the bias of the time0 state
     Bias3 bg = values.at<JPLNavState>(X(map_states[time0])).bg();

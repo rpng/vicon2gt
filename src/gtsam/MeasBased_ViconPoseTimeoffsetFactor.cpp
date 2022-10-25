@@ -63,7 +63,7 @@ gtsam::Vector MeasBased_ViconPoseTimeoffsetFactor::evaluateError(const JPLNavSta
   // Error in our our state in respect to the measurement
   error.block(0, 0, 3, 1) = 2 * q_r.block(0, 0, 3, 1);
   error.block(3, 0, 3, 1) = p_BinV - p_interp;
-  error = sqrt_inv_interp * error;
+  error = sqrt_inv_interp * error;// to white
 
   //================================================================================
   //================================================================================

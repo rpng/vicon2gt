@@ -3,7 +3,7 @@
 
     <!-- dataset name -->
     <!-- euroc_V1_01_easy, tum_corridor1_512_16_okvis, udel_gore, udel_arl -->
-    <arg name="dataset" default="tum_corridor1_512_16_okvis" />
+    <arg name="dataset" default="udel_arl" />
     <arg name="seed"    default="1" />
 
     <!-- saving to file -->
@@ -27,6 +27,7 @@
         <param name="sim_freq_imu"      type="double" value="200" />
         <param name="sim_freq_cam"      type="double" value="20" />
         <param name="sim_freq_vicon"    type="double" value="100" />
+        <!-- how many hz can vicon freq vary-->>
 
         <!-- save information -->
         <param name="state_freq"           type="int"    value="20" />
@@ -42,7 +43,7 @@
         <param name="gravity_magnitude"          type="double" value="9.81" />
         <param name="toff_imu_to_vicon"          type="double" value="0.0" />
         <param name="num_loop_relin"             type="int"    value="0" />
-        <param name="estimate_toff_vicon_to_imu" type="bool"   value="true" />
+        <param name="estimate_toff_vicon_to_imu" type="bool"   value="false" />
         <param name="estimate_ori_vicon_to_imu"  type="bool"   value="true" />
         <param name="estimate_pos_vicon_to_imu"  type="bool"   value="true" />
 

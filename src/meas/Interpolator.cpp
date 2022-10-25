@@ -116,7 +116,7 @@ bool Interpolator::get_pose(double timestamp, Eigen::Matrix<double, 4, 1> &q, Ei
   // NOTE: Right now we just say that the poses need to be at least 5 second away
   // NOTE: This might cause failure if low frequency vicon rates, but 5 second is pretty slow...
   // NOTE: The pose estimate is only really used for initial guess, we will be stricter on accepting info for the factor...
-  double thresh_sec = 5.0;
+  double thresh_sec = 0.1; // TODO 5 s
   if (std::abs(timestamp - pose0.timestamp) > thresh_sec || std::abs(timestamp - pose1.timestamp) > thresh_sec) {
     // ROS_ERROR("[INTER]: UNABLE TO FIND BOUNDING POSES, %d, %d", bounds.first == pose_data.end(), bounds.second == pose_data.end());
     // ROS_ERROR("[INTER]: tmeas = %.9f | time0 = %.9f | time1 = %.9f", timestamp, pose0.timestamp, pose1.timestamp);
