@@ -162,6 +162,9 @@ protected:
 
   // Number of times we will loop and relinearize the measurements
   int num_loop_relin;
+
+  // Small dt we will perturb to do our time derivative of
+  double TIME_OFFSET = 0.25;
 };
 
 #endif /* VICONGRAPHSOLVER_H */

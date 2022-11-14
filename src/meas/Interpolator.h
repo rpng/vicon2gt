@@ -74,10 +74,19 @@ public:
   /// Get all raw poses (used only for viz)
   std::set<POSEDATA, std::less<POSEDATA>> get_raw_poses() { return pose_data; }
 
+  /// Oldest pose reading we have
+  double get_time_min() { return time_min; }
+
+  /// Newest pose reading we have
+  double get_time_max() { return time_max; }
+
 private:
   // Our history of POSE messages (time, ori, pos, vel, ang)
   // Note that this is sorted by timestamps so we can binary search through it....
   std::set<POSEDATA, std::less<POSEDATA>> pose_data;
+
+  double time_min = INFINITY;
+  double time_max = -INFINITY;
 };
 
 #endif /* INTERPOLATOR_H */

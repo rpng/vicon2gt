@@ -103,22 +103,48 @@ void ViconGraphSolver::build_and_solve() {
     std::exit(EXIT_FAILURE);
   }
 
+  // Ensure we have enough measurements after removing invalid
+  if (interpolator->get_raw_poses().size() < 2) {
+    ROS_ERROR("[VICON-GRAPH]: Not enough vicon poses to optimize with...");
+    ROS_ERROR("[VICON-GRAPH]: Make sure your vicon topic is correct...");
+    ROS_ERROR("%s on line %d", __FILE__, __LINE__);
+    std::exit(EXIT_FAILURE);
+  }
+
   // Delete all camera measurements that occur before our IMU readings
+  // Also delete ones before and after the first and last vicon measurements
   ROS_INFO("cleaning camera timestamps");
+  int ct_remove_imu = 0;
+  int ct_remove_before = 0;
+  int ct_remove_after = 0;
+  double vicon_first_time_inI = interpolator->get_time_min() + init_toff_imu_to_vicon + 2 * TIME_OFFSET;
+  double vicon_last_time_inI = interpolator->get_time_max() + init_toff_imu_to_vicon - 2 * TIME_OFFSET;
   auto it0 = timestamp_cameras.begin();
   while (it0 != timestamp_cameras.end()) {
+    if (!ros::ok())
+      break;
     if (!propagator->has_bounding_imu(*it0)) {
-      ROS_INFO_THROTTLE(0.1, "    - deleted cam time %.9f [throttled]", *it0);
+      ROS_INFO_THROTTLE(0.05, "    - deleted cam time %.9f with no IMU [throttled]", *it0);
       it0 = timestamp_cameras.erase(it0);
+      ct_remove_imu++;
+    } else if ((*it0) < vicon_first_time_inI) {
+      ROS_INFO_THROTTLE(0.05, "    - deleted cam time %.9f before first vicon [throttled]", *it0);
+      it0 = timestamp_cameras.erase(it0);
+      ct_remove_before++;
+    } else if ((*it0) > vicon_last_time_inI) {
+      ROS_INFO_THROTTLE(0.05, "    - deleted cam time %.9f after last vicon [throttled]", *it0);
+      it0 = timestamp_cameras.erase(it0);
+      ct_remove_after++;
     } else {
       it0++;
     }
   }
+  ROS_INFO("removed %d imu invalid, %d invalid before vicon, %d invalid after vicon", ct_remove_imu, ct_remove_before, ct_remove_after);
 
   // Ensure we have enough measurements after removing invalid
   if (timestamp_cameras.empty()) {
     ROS_ERROR("[VICON-GRAPH]: All camera timestamps where out of the range of the IMU measurements.");
-    ROS_ERROR("[VICON-GRAPH]: Make sure your camera and imu topics are correct...");
+    ROS_ERROR("[VICON-GRAPH]: Make sure your vicon and imu topics are correct...");
     ROS_ERROR("%s on line %d", __FILE__, __LINE__);
     std::exit(EXIT_FAILURE);
   }
@@ -149,6 +175,9 @@ void ViconGraphSolver::build_and_solve() {
     ROS_INFO("\u001b[34m[TIME]: %.4f to build\u001b[0m", (rT2 - rT1).total_microseconds() * 1e-6);
     ROS_INFO("\u001b[34m[TIME]: %.4f to optimize\u001b[0m", (rT3 - rT2).total_microseconds() * 1e-6);
     ROS_INFO("\u001b[34m[TIME]: %.4f total (loop %d)\u001b[0m", (rT3 - rT1).total_microseconds() * 1e-6, i);
+
+    // Visualize this iteration
+    visualize();
   }
 
   // Debug print results...
@@ -399,19 +428,20 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
     // Current image time
     double timestamp_inI = *it1;
+    double time_from_start = timestamp_inI - timestamp_cameras.at(0);
     double timestamp_inV = timestamp_inI - values.at<Vector1>(T(0))(0);
 
     // First get the vicon pose at the current time
-    Eigen::Matrix<double, 4, 1> q_VtoB;
-    Eigen::Matrix<double, 3, 1> p_BinV;
+    Eigen::Vector4d q_VtoB, q_VtoB0, q_VtoB2;
+    Eigen::Vector3d p_BinV, p_B0inV, p_B2inV;
     Eigen::Matrix<double, 6, 6> R_vicon;
-    bool has_vicon1 = interpolator->get_pose(timestamp_inV - 1.0, q_VtoB, p_BinV, R_vicon);
-    bool has_vicon2 = interpolator->get_pose(timestamp_inV + 1.0, q_VtoB, p_BinV, R_vicon);
+    bool has_vicon1 = interpolator->get_pose(timestamp_inV - TIME_OFFSET, q_VtoB0, p_B0inV, R_vicon);
+    bool has_vicon2 = interpolator->get_pose(timestamp_inV + TIME_OFFSET, q_VtoB2, p_B2inV, R_vicon);
     bool has_vicon3 = interpolator->get_pose(timestamp_inV, q_VtoB, p_BinV, R_vicon);
 
     // Skip if we don't have a vicon measurement for this pose
     if (!has_vicon1 || !has_vicon2 || !has_vicon3) {
-      ROS_WARN_THROTTLE(0.1, "    - skipping camera time %.9f (no vicon pose found) [throttled]", timestamp_inI);
+      ROS_WARN("    - skipping camera time %.9f - %.2f from beginning (no vicon pose found)", timestamp_inI, time_from_start);
       if (values.find(X(map_states[timestamp_inI])) != values.end()) {
         values.erase(X(map_states[timestamp_inI]));
       }
@@ -421,8 +451,8 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
     // Check if we can do the inverse
     if (std::isnan(R_vicon.norm()) || std::isnan(R_vicon.inverse().norm())) {
-      ROS_WARN_THROTTLE(0.1, "    - skipping camera time %.9f (R.norm = %.3f | Rinv.norm = %.3f) [throttled]", timestamp_inI,
-                        R_vicon.norm(), R_vicon.inverse().norm());
+      ROS_WARN("    - skipping camera time %.9f - %.2f from beginning (R.norm = %.3f | Rinv.norm = %.3f)", timestamp_inI, time_from_start,
+               R_vicon.norm(), R_vicon.inverse().norm());
       if (values.find(X(map_states[timestamp_inI])) != values.end()) {
         values.erase(X(map_states[timestamp_inI]));
       }
@@ -432,11 +462,22 @@ void ViconGraphSolver::build_problem(bool init_states) {
 
     // Now initialize the current pose of the IMU
     if (init_states) {
-      Eigen::Matrix<double, 4, 1> q_VtoI = quat_multiply(rot_2_quat(init_R_BtoI), q_VtoB);
-      Eigen::Matrix<double, 3, 1> bg = Eigen::Matrix<double, 3, 1>::Zero();
-      Eigen::Matrix<double, 3, 1> v_IinV = Eigen::Matrix<double, 3, 1>::Zero();
-      Eigen::Matrix<double, 3, 1> ba = Eigen::Matrix<double, 3, 1>::Zero();
-      Eigen::Matrix<double, 3, 1> p_IinV = p_BinV - quat_2_Rot(Inv(q_VtoB)) * init_R_BtoI.transpose() * init_p_BinI;
+
+      // Orientation and position are the relative to
+      Eigen::Vector4d q_VtoI = quat_multiply(rot_2_quat(init_R_BtoI), q_VtoB);
+      Eigen::Vector3d p_IinV = p_BinV - quat_2_Rot(Inv(q_VtoB)) * init_R_BtoI.transpose() * init_p_BinI;
+
+      // An initial guess for the velocity is just a sample time derivative from the vicon poses
+      // Should be a "Three-point midpoint" numerical derivative
+      Eigen::Vector3d p_I0inV = p_B0inV - quat_2_Rot(Inv(q_VtoB0)) * init_R_BtoI.transpose() * init_p_BinI;
+      Eigen::Vector3d p_I2inV = p_B2inV - quat_2_Rot(Inv(q_VtoB2)) * init_R_BtoI.transpose() * init_p_BinI;
+      Eigen::Vector3d v_IinV = (p_I2inV - p_I0inV) / (2 * TIME_OFFSET);
+
+      // Initialize our biases to zero as the guess here
+      Eigen::Vector3d bg = Eigen::Vector3d::Zero();
+      Eigen::Vector3d ba = Eigen::Vector3d::Zero();
+
+      // Create the graph node
       JPLNavState imu_state(timestamp_inI, q_VtoI, bg, v_IinV, ba, p_IinV);
       values.insert(X(map_states[timestamp_inI]), imu_state);
     }

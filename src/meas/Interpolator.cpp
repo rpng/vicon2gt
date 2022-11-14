@@ -31,6 +31,10 @@ void Interpolator::feed_pose(double timestamp, Eigen::Vector4d q, Eigen::Vector3
 
   // Append it to our vector
   pose_data.insert(data);
+
+  // Update our times
+  time_min = std::min(time_min, timestamp);
+  time_max = std::max(time_max, timestamp);
 }
 
 void Interpolator::feed_odom(double timestamp, Eigen::Vector4d q, Eigen::Vector3d p, Eigen::Vector3d v, Eigen::Vector3d w,
@@ -110,7 +114,7 @@ bool Interpolator::get_pose(double timestamp, Eigen::Vector4d &q, Eigen::Vector3
   POSEDATA pose1 = *bounds.second;
 
   // Return failure if the poses are too far away
-  // NOTE: Right now we just say that the poses need to be at least 5 second away
+  // NOTE: Right now we just say that the poses need to be at least 5 seconds away
   // NOTE: This might cause failure if low frequency vicon rates, but 5 second is pretty slow...
   // NOTE: The pose estimate is only really used for initial guess, we will be stricter on accepting info for the factor...
   double thresh_sec = 5.0;
