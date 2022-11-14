@@ -13,7 +13,7 @@
     <arg name="stats_path_info"     default="/tmp/vicon2gt_info.txt" />
 
     <!-- vicon noise values -->
-    <arg name="vicon_sigmas" default="[0.005,0.005,0.005,0.02,0.02,0.02]" />
+    <arg name="vicon_sigmas" default="[0.0174,0.0174,0.0174,0.05,0.05,0.05]" />
 
     <!-- set the total number of OpenMP threads -->
     <env name="OMP_NUM_THREADS" value="4" />
@@ -24,12 +24,12 @@
         <!-- simulation -->
         <param name="sim_seed"          type="int"    value="$(arg seed)" />
         <param name="sim_traj_path"     type="string" value="$(find vicon2gt)/data/$(arg dataset).txt" />
-        <param name="sim_freq_imu"      type="double" value="200" />
+        <param name="sim_freq_imu"      type="double" value="400" />
         <param name="sim_freq_cam"      type="double" value="20" />
         <param name="sim_freq_vicon"    type="double" value="100" />
 
         <!-- save information -->
-        <param name="state_freq"           type="int"    value="20" />
+        <param name="state_freq"           type="int"    value="100" />
         <param name="save_to_file"         type="bool"   value="$(arg save_to_file)" />
         <param name="stats_path_states"    type="string" value="$(arg stats_path_states)" />
         <param name="stats_path_states_gt" type="string" value="$(arg stats_path_gt)" />

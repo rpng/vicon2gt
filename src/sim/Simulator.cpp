@@ -32,7 +32,7 @@ Simulator::Simulator(const SimulatorParams &params_) {
   w_vec << 0.1 * w(r), 0.1 * w(r), 0.1 * w(r);
   params.R_BtoI = exp_so3(w_vec);
   params.p_BinI << 0.2 * w(r), 0.2 * w(r), 0.2 * w(r);
-  params.viconimu_dt = 0.05 * w(r);
+  params.viconimu_dt = 0.08 * w(r);
 
   // Random gravity and vicon frame alignment
   params.R_GtoV = rot_y(0.1 * M_PI * w(r)) * rot_x(0.1 * M_PI * w(r));

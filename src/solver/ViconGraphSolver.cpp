@@ -265,8 +265,8 @@ void ViconGraphSolver::visualize() {
   for (size_t i = 0; i < timestamp_cameras.size(); i++) {
 
     // Get the interpolated pose
-    Eigen::Matrix<double, 4, 1> q_VtoB;
-    Eigen::Matrix<double, 3, 1> p_BinV;
+    Eigen::Vector4d q_VtoB;
+    Eigen::Vector3d p_BinV;
     Eigen::Matrix<double, 6, 6> R_vicon;
     double timestamp_inV = timestamp_cameras.at(i) - values.at<Vector1>(T(0))(0);
     bool has_vicon = interpolator->get_pose(timestamp_inV, q_VtoB, p_BinV, R_vicon);
@@ -325,7 +325,7 @@ void ViconGraphSolver::visualize() {
   pub_vicon_raw.publish(pose_arr);
 }
 
-void ViconGraphSolver::get_imu_poses(std::vector<double> &times, std::vector<Eigen::Matrix<double, 7, 1>> &poses) {
+void ViconGraphSolver::get_imu_poses(std::vector<double> &times, std::vector<Eigen::Matrix<double, 10, 1>> &poses) {
 
   // Clear the old data
   times.clear();
@@ -338,8 +338,8 @@ void ViconGraphSolver::get_imu_poses(std::vector<double> &times, std::vector<Eig
     JPLNavState state = values_result.at<JPLNavState>(X(map_states[timestamp_cameras.at(i)]));
 
     // append to our vectors
-    Eigen::Matrix<double, 7, 1> pose;
-    pose << state.q(), state.p();
+    Eigen::Matrix<double, 10, 1> pose;
+    pose << state.q(), state.p(), state.v();
     times.push_back(timestamp_cameras.at(i));
     poses.push_back(pose);
   }

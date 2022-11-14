@@ -80,8 +80,8 @@ int main(int argc, char **argv) {
   nh.param<double>("accelerometer_random_walk", sigma_ab, 3.0000e-03);
 
   // Vicon sigmas (used if we don't have odometry messages)
-  Eigen::Matrix<double, 3, 3> R_q = Eigen::Matrix<double, 3, 3>::Zero();
-  Eigen::Matrix<double, 3, 3> R_p = Eigen::Matrix<double, 3, 3>::Zero();
+  Eigen::Matrix3d R_q = Eigen::Matrix3d::Zero();
+  Eigen::Matrix3d R_p = Eigen::Matrix3d::Zero();
   std::vector<double> viconsigmas;
   std::vector<double> viconsigmas_default = {1e-3, 1e-3, 1e-3, 1e-2, 1e-2, 1e-2};
   nh.param<std::vector<double>>("vicon_sigmas", viconsigmas, viconsigmas_default);
@@ -197,12 +197,12 @@ int main(int argc, char **argv) {
 
   // Get the final optimized poses
   std::vector<double> times;
-  std::vector<Eigen::Matrix<double, 7, 1>> poses;
+  std::vector<Eigen::Matrix<double, 10, 1>> poses;
   solver.get_imu_poses(times, poses);
 
   // Now compute the error compared to our true states
   std::vector<geometry_msgs::PoseStamped> poses_gtimu;
-  Stats err_ori, err_pos;
+  Stats err_ori, err_pos, err_vel;
   for (size_t i = 0; i < times.size(); i++) {
 
     // get the states
@@ -210,11 +210,12 @@ int main(int argc, char **argv) {
     // EST: [q_VtoI,p_IinV]
     Eigen::Matrix<double, 17, 1> gt_state;
     sim->get_state_in_vicon(times.at(i), gt_state);
-    Eigen::Matrix<double, 7, 1> est_state = poses.at(i);
+    Eigen::Matrix<double, 10, 1> est_state = poses.at(i);
 
     // compute error
     double ori = 2.0 * (quat_multiply(gt_state.block(1, 0, 4, 1), Inv(est_state.block(0, 0, 4, 1)))).block(0, 0, 3, 1).norm();
     double pose = (est_state.block(4, 0, 3, 1) - gt_state.block(5, 0, 3, 1)).norm();
+    double vel = (est_state.block(7, 0, 3, 1) - gt_state.block(8, 0, 3, 1)).norm();
 
     // Append to the history
     // cout << i << " " << 180.0/M_PI*ori << " " << pose << endl;
@@ -224,6 +225,8 @@ int main(int argc, char **argv) {
     err_ori.values.push_back(180.0 / M_PI * ori);
     err_pos.timestamps.push_back(times.at(i));
     err_pos.values.push_back(pose);
+    err_vel.timestamps.push_back(times.at(i));
+    err_vel.values.push_back(vel);
 
     // Create the ROS pose for visualization
     geometry_msgs::PoseStamped posetemp;
@@ -283,14 +286,15 @@ int main(int argc, char **argv) {
   // Calculate and print trajectory error
   err_ori.calculate();
   err_pos.calculate();
+  err_vel.calculate();
   printf(REDPURPLE "======================================\n");
-  printf(REDPURPLE "Trajectory Errors (deg,m)\n");
+  printf(REDPURPLE "Trajectory Errors (deg,m,m/s)\n");
   printf(REDPURPLE "======================================\n");
-  printf(REDPURPLE "rmse_ori = %.5f | rmse_pos = %.5f\n", err_ori.rmse, err_pos.rmse);
-  printf(REDPURPLE "mean_ori = %.5f | mean_pos = %.5f\n", err_ori.mean, err_pos.mean);
-  printf(REDPURPLE "min_ori  = %.5f | min_pos  = %.5f\n", err_ori.min, err_pos.min);
-  printf(REDPURPLE "max_ori  = %.5f | max_pos  = %.5f\n", err_ori.max, err_pos.max);
-  printf(REDPURPLE "std_ori  = %.5f | std_pos  = %.5f\n\n", err_ori.std, err_pos.std);
+  printf(REDPURPLE "rmse_ori = %.5f | rmse_pos = %.5f | rmse_vel = %.5f\n", err_ori.rmse, err_pos.rmse, err_vel.rmse);
+  printf(REDPURPLE "mean_ori = %.5f | mean_pos = %.5f | mean_vel = %.5f\n", err_ori.mean, err_pos.mean, err_vel.mean);
+  printf(REDPURPLE "min_ori  = %.5f | min_pos  = %.5f | min_vel  = %.5f\n", err_ori.min, err_pos.min, err_vel.min);
+  printf(REDPURPLE "max_ori  = %.5f | max_pos  = %.5f | max_vel  = %.5f\n", err_ori.max, err_pos.max, err_vel.max);
+  printf(REDPURPLE "std_ori  = %.5f | std_pos  = %.5f | std_vel  = %.5f\n\n", err_ori.std, err_pos.std, err_vel.std);
 
   // Get converged calibration
   double toff;

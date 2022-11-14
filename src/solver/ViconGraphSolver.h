@@ -96,9 +96,9 @@ public:
   /**
    * @brief Returns the current optimized poses which we estimated
    * @param times Timestamps in seconds each pose will occur at
-   * @param poses Poses in quaternion position ordering
+   * @param poses Poses in quaternion position velocity ordering
    */
-  void get_imu_poses(std::vector<double> &times, std::vector<Eigen::Matrix<double, 7, 1>> &poses);
+  void get_imu_poses(std::vector<double> &times, std::vector<Eigen::Matrix<double, 10, 1>> &poses);
 
   /**
    * @brief Gets other calibration parameters we estimate online
