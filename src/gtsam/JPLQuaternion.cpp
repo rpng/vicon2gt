@@ -24,12 +24,12 @@ using namespace gtsam;
 JPLQuaternion gtsam::JPLQuaternion::retract(const Vector3 &xi) const {
 
   // Calculate the update quaternion from the minimal representation
-  Eigen::Matrix<double, 3, 1> dth = xi.block(0, 0, 3, 1);
-  Eigen::Matrix<double, 3, 1> dq13 = ((std::sin(dth.norm() / 2) / dth.norm())) * dth;
+  Eigen::Vector3d dth = xi.block(0, 0, 3, 1);
+  Eigen::Vector3d dq13 = ((std::sin(dth.norm() / 2) / dth.norm())) * dth;
   double dq4 = std::cos(dth.norm() / 2);
 
   // From the minimal representation, create the full 4x1 correction quaternion
-  Eigen::Matrix<double, 4, 1> dq;
+  Eigen::Vector4d dq;
   dq << dq13, dq4;
   dq = dq / dq.norm();
   if (dq(3) < 0) {
@@ -42,7 +42,7 @@ JPLQuaternion gtsam::JPLQuaternion::retract(const Vector3 &xi) const {
   }
 
   // Update our current state values
-  Eigen::Matrix<double, 4, 1> q = quat_multiply(dq, q_GtoI);
+  Eigen::Vector4d q = quat_multiply(dq, q_GtoI);
 
   // Reconstruct and return this new state
   return JPLQuaternion(q);

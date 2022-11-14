@@ -56,12 +56,12 @@ private:
   Bias3 ba_lin; ///< original acceleration bias linerization point
   Bias3 bg_lin; ///< original gyroscope bias linearization point
 
-  Eigen::Matrix<double, 3, 3> J_q;     ///< jacobian of the preintegrated rotation in respect to the gyro bias correction
-  Eigen::Matrix<double, 3, 3> J_beta;  ///<  jacobian of the preintegrated velocity in respect to the gyro bias correction
-  Eigen::Matrix<double, 3, 3> J_alpha; ///<  jacobian of the preintegrated position in respect to the gyro bias correction
+  Eigen::Matrix3d J_q;     ///< jacobian of the preintegrated rotation in respect to the gyro bias correction
+  Eigen::Matrix3d J_beta;  ///<  jacobian of the preintegrated velocity in respect to the gyro bias correction
+  Eigen::Matrix3d J_alpha; ///<  jacobian of the preintegrated position in respect to the gyro bias correction
 
-  Eigen::Matrix<double, 3, 3> H_beta;  ///<  jacobian of the preintegrated velocity in respect to the accelerometer bias correction
-  Eigen::Matrix<double, 3, 3> H_alpha; ///<  jacobian of the preintegrated position in respect to the accelerometer bias correction
+  Eigen::Matrix3d H_beta;  ///<  jacobian of the preintegrated velocity in respect to the accelerometer bias correction
+  Eigen::Matrix3d H_alpha; ///<  jacobian of the preintegrated position in respect to the accelerometer bias correction
 
   double deltatime;         ///< time in seconds that this measurement is over
   double gravity_magnitude; ///< global gravity magnitude (should be the same for all measurements)
@@ -69,9 +69,9 @@ private:
 public:
   /// Construct from the two linking JPLNavStates, preingration measurement, and its covariance
   ImuFactorCPIv1(Key state_i, Key state_j, Key rotxy, Eigen::Matrix<double, 15, 15> covariance, double deltatime, double grav_m,
-                 Vector3 alpha, Vector3 beta, Vector4 q_KtoK1, Bias3 ba_lin, Bias3 bg_lin, Eigen::Matrix<double, 3, 3> J_q,
-                 Eigen::Matrix<double, 3, 3> J_beta, Eigen::Matrix<double, 3, 3> J_alpha, Eigen::Matrix<double, 3, 3> H_beta,
-                 Eigen::Matrix<double, 3, 3> H_alpha)
+                 Vector3 alpha, Vector3 beta, Vector4 q_KtoK1, Bias3 ba_lin, Bias3 bg_lin, Eigen::Matrix3d J_q,
+                 Eigen::Matrix3d J_beta, Eigen::Matrix3d J_alpha, Eigen::Matrix3d H_beta,
+                 Eigen::Matrix3d H_alpha)
       : NoiseModelFactor3<JPLNavState, JPLNavState, RotationXY>(noiseModel::Gaussian::Covariance(covariance), state_i, state_j, rotxy) {
 
     // Measurement

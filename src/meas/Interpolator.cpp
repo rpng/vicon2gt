@@ -18,8 +18,7 @@
  */
 #include "Interpolator.h"
 
-void Interpolator::feed_pose(double timestamp, Eigen::Matrix<double, 4, 1> q, Eigen::Matrix<double, 3, 1> p,
-                             Eigen::Matrix<double, 3, 3> R_q, Eigen::Matrix<double, 3, 3> R_p) {
+void Interpolator::feed_pose(double timestamp, Eigen::Vector4d q, Eigen::Vector3d p, Eigen::Matrix3d R_q, Eigen::Matrix3d R_p) {
 
   // Create our imu data object
   POSEDATA data;
@@ -34,9 +33,8 @@ void Interpolator::feed_pose(double timestamp, Eigen::Matrix<double, 4, 1> q, Ei
   pose_data.insert(data);
 }
 
-void Interpolator::feed_odom(double timestamp, Eigen::Matrix<double, 4, 1> q, Eigen::Matrix<double, 3, 1> p, Eigen::Matrix<double, 3, 1> v,
-                             Eigen::Matrix<double, 3, 1> w, Eigen::Matrix<double, 3, 3> R_q, Eigen::Matrix<double, 3, 3> R_p,
-                             Eigen::Matrix<double, 3, 3> R_v, Eigen::Matrix<double, 3, 3> R_w) {
+void Interpolator::feed_odom(double timestamp, Eigen::Vector4d q, Eigen::Vector3d p, Eigen::Vector3d v, Eigen::Vector3d w,
+                             Eigen::Matrix3d R_q, Eigen::Matrix3d R_p, Eigen::Matrix3d R_v, Eigen::Matrix3d R_w) {
 
   // Create our imu data object
   POSEDATA data;
@@ -55,8 +53,7 @@ void Interpolator::feed_odom(double timestamp, Eigen::Matrix<double, 4, 1> q, Ei
   pose_data.insert(data);
 }
 
-bool Interpolator::get_pose(double timestamp, Eigen::Matrix<double, 4, 1> &q, Eigen::Matrix<double, 3, 1> &p,
-                            Eigen::Matrix<double, 6, 6> &R) {
+bool Interpolator::get_pose(double timestamp, Eigen::Vector4d &q, Eigen::Vector3d &p, Eigen::Matrix<double, 6, 6> &R) {
 
   // Find our bounds for the desired timestamp
   POSEDATA pose_to_find;
@@ -127,23 +124,23 @@ bool Interpolator::get_pose(double timestamp, Eigen::Matrix<double, 4, 1> &q, Ei
   double lambda = (timestamp - pose0.timestamp) / (pose1.timestamp - pose0.timestamp);
 
   // Bounding SO(3) orientations
-  Eigen::Matrix<double, 3, 3> R_Gto0 = quat_2_Rot(pose0.q);
-  Eigen::Matrix<double, 3, 3> R_Gto1 = quat_2_Rot(pose1.q);
+  Eigen::Matrix3d R_Gto0 = quat_2_Rot(pose0.q);
+  Eigen::Matrix3d R_Gto1 = quat_2_Rot(pose1.q);
 
   // Now perform the interpolation
-  Eigen::Matrix<double, 3, 3> R_0to1 = R_Gto1 * R_Gto0.transpose();
-  Eigen::Matrix<double, 3, 3> R_0toi = exp_so3(lambda * log_so3(R_0to1));
-  Eigen::Matrix<double, 3, 3> R_interp = R_0toi * R_Gto0;
-  Eigen::Matrix<double, 3, 1> p_interp = (1 - lambda) * pose0.p + lambda * pose1.p;
+  Eigen::Matrix3d R_0to1 = R_Gto1 * R_Gto0.transpose();
+  Eigen::Matrix3d R_0toi = exp_so3(lambda * log_so3(R_0to1));
+  Eigen::Matrix3d R_interp = R_0toi * R_Gto0;
+  Eigen::Vector3d p_interp = (1 - lambda) * pose0.p + lambda * pose1.p;
 
   // Calculate intermediate values for cov propagation equations
   // Equation (8)-(10) of Geneva2018ICRA async measurement paper
-  Eigen::Matrix<double, 3, 3> eye33 = Eigen::Matrix<double, 3, 3>::Identity();
-  Eigen::Matrix<double, 3, 3> JR_r0i = Jr_so3(lambda * log_so3(R_0to1));
-  Eigen::Matrix<double, 3, 3> JRinv_r01 = Jr_so3(log_so3(R_0to1)).inverse();
+  Eigen::Matrix3d eye33 = Eigen::Matrix3d::Identity();
+  Eigen::Matrix3d JR_r0i = Jr_so3(lambda * log_so3(R_0to1));
+  Eigen::Matrix3d JRinv_r01 = Jr_so3(log_so3(R_0to1)).inverse();
   JRinv_r01 = JRinv_r01.inverse().eval();
-  Eigen::Matrix<double, 3, 3> JRneg_r0i = Jr_so3(-lambda * log_so3(R_0to1.transpose()));
-  Eigen::Matrix<double, 3, 3> JRneginv_r01 = Jr_so3(log_so3(R_0to1.transpose())).inverse();
+  Eigen::Matrix3d JRneg_r0i = Jr_so3(-lambda * log_so3(R_0to1.transpose()));
+  Eigen::Matrix3d JRneginv_r01 = Jr_so3(log_so3(R_0to1.transpose())).inverse();
   JRneginv_r01 = JRneginv_r01.inverse().eval();
 
   // Covariance propagation Jacobian
@@ -168,8 +165,8 @@ bool Interpolator::get_pose(double timestamp, Eigen::Matrix<double, 4, 1> &q, Ei
   return true;
 }
 
-bool Interpolator::get_pose_with_jacobian(double timestamp, Eigen::Matrix<double, 4, 1> &q, Eigen::Matrix<double, 3, 1> &p,
-                                          Eigen::Matrix<double, 6, 6> &R, Eigen::Matrix<double, 6, 1> &H_toff) {
+bool Interpolator::get_pose_with_jacobian(double timestamp, Eigen::Vector4d &q, Eigen::Vector3d &p, Eigen::Matrix<double, 6, 6> &R,
+                                          Eigen::Matrix<double, 6, 1> &H_toff) {
 
   // Find our bounds for the desired timestamp
   POSEDATA pose_to_find;
@@ -239,23 +236,23 @@ bool Interpolator::get_pose_with_jacobian(double timestamp, Eigen::Matrix<double
   double lambda = (timestamp - pose0.timestamp) / (pose1.timestamp - pose0.timestamp);
 
   // Bounding SO(3) orientations
-  Eigen::Matrix<double, 3, 3> R_Gto0 = quat_2_Rot(pose0.q);
-  Eigen::Matrix<double, 3, 3> R_Gto1 = quat_2_Rot(pose1.q);
+  Eigen::Matrix3d R_Gto0 = quat_2_Rot(pose0.q);
+  Eigen::Matrix3d R_Gto1 = quat_2_Rot(pose1.q);
 
   // Now perform the interpolation
-  Eigen::Matrix<double, 3, 3> R_0to1 = R_Gto1 * R_Gto0.transpose();
-  Eigen::Matrix<double, 3, 3> R_0toi = exp_so3(lambda * log_so3(R_0to1));
-  Eigen::Matrix<double, 3, 3> R_interp = R_0toi * R_Gto0;
-  Eigen::Matrix<double, 3, 1> p_interp = (1 - lambda) * pose0.p + lambda * pose1.p;
+  Eigen::Matrix3d R_0to1 = R_Gto1 * R_Gto0.transpose();
+  Eigen::Matrix3d R_0toi = exp_so3(lambda * log_so3(R_0to1));
+  Eigen::Matrix3d R_interp = R_0toi * R_Gto0;
+  Eigen::Vector3d p_interp = (1 - lambda) * pose0.p + lambda * pose1.p;
 
   // Calculate intermediate values for cov propagation equations
   // Equation (8)-(10) of Geneva2018ICRA async measurement paper
-  Eigen::Matrix<double, 3, 3> eye33 = Eigen::Matrix<double, 3, 3>::Identity();
-  Eigen::Matrix<double, 3, 3> JR_r0i = Jr_so3(lambda * log_so3(R_0to1));
-  Eigen::Matrix<double, 3, 3> JRinv_r01 = Jr_so3(log_so3(R_0to1)).inverse();
+  Eigen::Matrix3d eye33 = Eigen::Matrix3d::Identity();
+  Eigen::Matrix3d JR_r0i = Jr_so3(lambda * log_so3(R_0to1));
+  Eigen::Matrix3d JRinv_r01 = Jr_so3(log_so3(R_0to1)).inverse();
   JRinv_r01 = JRinv_r01.inverse().eval();
-  Eigen::Matrix<double, 3, 3> JRneg_r0i = Jr_so3(-lambda * log_so3(R_0to1.transpose()));
-  Eigen::Matrix<double, 3, 3> JRneginv_r01 = Jr_so3(log_so3(R_0to1.transpose())).inverse();
+  Eigen::Matrix3d JRneg_r0i = Jr_so3(-lambda * log_so3(R_0to1.transpose()));
+  Eigen::Matrix3d JRneginv_r01 = Jr_so3(log_so3(R_0to1.transpose())).inverse();
   JRneginv_r01 = JRneginv_r01.inverse().eval();
 
   // Covariance propagation Jacobian
@@ -286,9 +283,8 @@ bool Interpolator::get_pose_with_jacobian(double timestamp, Eigen::Matrix<double
   return true;
 }
 
-bool Interpolator::get_bounds(double timestamp, double &time0, Eigen::Matrix<double, 4, 1> &q0, Eigen::Matrix<double, 3, 1> &p0,
-                              Eigen::Matrix<double, 6, 6> &R0, double &time1, Eigen::Matrix<double, 4, 1> &q1,
-                              Eigen::Matrix<double, 3, 1> &p1, Eigen::Matrix<double, 6, 6> &R1) {
+bool Interpolator::get_bounds(double timestamp, double &time0, Eigen::Vector4d &q0, Eigen::Vector3d &p0, Eigen::Matrix<double, 6, 6> &R0,
+                              double &time1, Eigen::Vector4d &q1, Eigen::Vector3d &p1, Eigen::Matrix<double, 6, 6> &R1) {
 
   // Find our bounds for the desired timestamp
   POSEDATA pose_to_find;

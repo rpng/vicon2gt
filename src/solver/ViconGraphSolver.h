@@ -138,9 +138,9 @@ protected:
   std::vector<double> timestamp_cameras;
 
   // Initial estimates of our variables
-  Eigen::Matrix<double, 3, 3> init_R_GtoV;
-  Eigen::Matrix<double, 3, 3> init_R_BtoI;
-  Eigen::Matrix<double, 3, 1> init_p_BinI;
+  Eigen::Matrix3d init_R_GtoV;
+  Eigen::Matrix3d init_R_BtoI;
+  Eigen::Vector3d init_p_BinI;
   double init_toff_imu_to_vicon;
 
   // We do not optimize the gravity magnitude

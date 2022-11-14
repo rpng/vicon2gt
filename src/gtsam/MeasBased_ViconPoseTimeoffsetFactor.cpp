@@ -38,15 +38,15 @@ gtsam::Vector MeasBased_ViconPoseTimeoffsetFactor::evaluateError(const JPLNavSta
 
   // Calculate the expected measurement values from the state
   Vector4 q_VtoB = quat_multiply(Inv(q_BtoI_vec), q_VtoI);
-  Eigen::Matrix<double, 3, 1> p_BinV = p_IinV + quat_2_Rot(q_VtoI).transpose() * p_BinI;
+  Eigen::Vector3d p_BinV = p_IinV + quat_2_Rot(q_VtoI).transpose() * p_BinI;
 
   //================================================================================
   //================================================================================
   //================================================================================
 
   // Get our interpolated pose at the node timestep
-  Eigen::Matrix<double, 4, 1> q_interp;
-  Eigen::Matrix<double, 3, 1> p_interp;
+  Eigen::Vector4d q_interp;
+  Eigen::Vector3d p_interp;
   Eigen::Matrix<double, 6, 6> R_interp;
   Eigen::Matrix<double, 6, 1> H_toff;
   bool has_vicon = m_interpolator->get_pose_with_jacobian(timestamp_inI - t_off(0), q_interp, p_interp, R_interp, H_toff);
@@ -75,7 +75,7 @@ gtsam::Vector MeasBased_ViconPoseTimeoffsetFactor::evaluateError(const JPLNavSta
     if (has_vicon) {
       H.block(0, 0, 3, 3) = quat_2_Rot(Inv(q_BtoI_vec));
       H.block(3, 0, 3, 3) = -quat_2_Rot(Inv(q_VtoI)) * skew_x(p_BinI);
-      H.block(3, 12, 3, 3) = Eigen::Matrix<double, 3, 3>::Identity();
+      H.block(3, 12, 3, 3) = Eigen::Matrix3d::Identity();
       H = sqrt_inv_interp * H;
     }
     *H1 = *OptionalJacobian<6, 15>(H);
@@ -105,7 +105,7 @@ gtsam::Vector MeasBased_ViconPoseTimeoffsetFactor::evaluateError(const JPLNavSta
     //        state, R_BtoI, p_BinI, t_off);
   }
 
-  // Compute the Jacobian in respect position extrinics between BODY and IMU frames
+  // Compute the Jacobian in respect position extrinsics between BODY and IMU frames
   if (H3) {
     Eigen::Matrix<double, 6, 3> H = Eigen::Matrix<double, 6, 3>::Zero();
     if (has_vicon && m_config->estimate_vicon_imu_pos) {

@@ -25,8 +25,8 @@
  * @brief Construct rotation matrix from given roll
  * @param t roll angle
  */
-static inline Eigen::Matrix<double, 3, 3> rot_x(double t) {
-  Eigen::Matrix<double, 3, 3> r;
+static inline Eigen::Matrix3d rot_x(double t) {
+  Eigen::Matrix3d r;
   double ct = cos(t);
   double st = sin(t);
   r << 1.0, 0.0, 0.0, 0.0, ct, -st, 0.0, st, ct;
@@ -37,8 +37,8 @@ static inline Eigen::Matrix<double, 3, 3> rot_x(double t) {
  * @brief Construct rotation matrix from given pitch
  * @param t pitch angle
  */
-static inline Eigen::Matrix<double, 3, 3> rot_y(double t) {
-  Eigen::Matrix<double, 3, 3> r;
+static inline Eigen::Matrix3d rot_y(double t) {
+  Eigen::Matrix3d r;
   double ct = cos(t);
   double st = sin(t);
   r << ct, 0.0, st, 0.0, 1.0, 0.0, -st, 0.0, ct;
@@ -49,8 +49,8 @@ static inline Eigen::Matrix<double, 3, 3> rot_y(double t) {
  * @brief Construct rotation matrix from given yaw
  * @param t yaw angle
  */
-static inline Eigen::Matrix<double, 3, 3> rot_z(double t) {
-  Eigen::Matrix<double, 3, 3> r;
+static inline Eigen::Matrix3d rot_z(double t) {
+  Eigen::Matrix3d r;
   double ct = cos(t);
   double st = sin(t);
   r << ct, -st, 0.0, st, ct, 0.0, 0.0, 0.0, 1.0;
@@ -65,8 +65,8 @@ static inline Eigen::Matrix<double, 3, 3> rot_z(double t) {
  * @param rot Rotation matrix
  * @return [roll,pitch,yaw] values
  */
-static inline Eigen::Matrix<double, 3, 1> rot2rpy(const Eigen::Matrix<double, 3, 3> &rot) {
-  Eigen::Matrix<double, 3, 1> rpy;
+static inline Eigen::Vector3d rot2rpy(const Eigen::Matrix3d &rot) {
+  Eigen::Vector3d rpy;
   rpy(2) = atan2(rot(1, 0), rot(0, 0));
   rpy(1) = atan2(-rot(2, 0), sqrt(rot(2, 1) * rot(2, 1) + rot(2, 2) * rot(2, 2)));
   rpy(0) = atan2(rot(2, 1), rot(2, 2));

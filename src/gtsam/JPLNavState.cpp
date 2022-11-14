@@ -25,8 +25,8 @@ using namespace gtsam;
 JPLNavState gtsam::JPLNavState::retract(const Vector15 &xi) const {
 
   // Calculate the update quaternion from the minimal representation
-  Eigen::Matrix<double, 3, 1> dth = xi.block(0, 0, 3, 1);
-  Eigen::Matrix<double, 3, 1> dq13 = ((std::sin(dth.norm() / 2) / dth.norm())) * dth;
+  Eigen::Vector3d dth = xi.block(0, 0, 3, 1);
+  Eigen::Vector3d dq13 = ((std::sin(dth.norm() / 2) / dth.norm())) * dth;
   double dq4 = std::cos(dth.norm() / 2);
 
   // From the minimal representation, create the full 4x1 correction quaternion

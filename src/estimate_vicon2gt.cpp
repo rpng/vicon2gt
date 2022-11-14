@@ -120,8 +120,8 @@ int main(int argc, char **argv) {
   nh.param<double>("accelerometer_random_walk", sigma_ab, 3.0000e-03);
 
   // Vicon sigmas (used if we don't have odometry messages)
-  Eigen::Matrix<double, 3, 3> R_q = Eigen::Matrix<double, 3, 3>::Zero();
-  Eigen::Matrix<double, 3, 3> R_p = Eigen::Matrix<double, 3, 3>::Zero();
+  Eigen::Matrix3d R_q = Eigen::Matrix3d::Zero();
+  Eigen::Matrix3d R_p = Eigen::Matrix3d::Zero();
   std::vector<double> viconsigmas;
   std::vector<double> viconsigmas_default = {1e-4, 1e-4, 1e-4, 1e-5, 1e-5, 1e-5};
   nh.param<std::vector<double>>("vicon_sigmas", viconsigmas, viconsigmas_default);
@@ -170,7 +170,7 @@ int main(int argc, char **argv) {
     // Handle IMU messages
     sensor_msgs::Imu::ConstPtr s0 = m.instantiate<sensor_msgs::Imu>();
     if (s0 != nullptr && m.getTopic() == topic_imu) {
-      Eigen::Matrix<double, 3, 1> wm, am;
+      Eigen::Vector3d wm, am;
       wm << s0->angular_velocity.x, s0->angular_velocity.y, s0->angular_velocity.z;
       am << s0->linear_acceleration.x, s0->linear_acceleration.y, s0->linear_acceleration.z;
       propagator->feed_imu(s0->header.stamp.toSec(), wm, am);
@@ -182,8 +182,8 @@ int main(int argc, char **argv) {
     nav_msgs::Odometry::ConstPtr s2 = m.instantiate<nav_msgs::Odometry>();
     if (s2 != nullptr && m.getTopic() == topic_vicon) {
       // load orientation and position of the vicon
-      Eigen::Matrix<double, 4, 1> q;
-      Eigen::Matrix<double, 3, 1> p;
+      Eigen::Vector4d q;
+      Eigen::Vector3d p;
       q << s2->pose.pose.orientation.x, s2->pose.pose.orientation.y, s2->pose.pose.orientation.z, s2->pose.pose.orientation.w;
       p << s2->pose.pose.position.x, s2->pose.pose.position.y, s2->pose.pose.position.z;
       // load the covariance of the pose (order=x,y,z,rx,ry,rz) stored row-major
@@ -219,8 +219,8 @@ int main(int argc, char **argv) {
     geometry_msgs::TransformStamped::ConstPtr s3 = m.instantiate<geometry_msgs::TransformStamped>();
     if (s3 != nullptr && m.getTopic() == topic_vicon) {
       // load orientation and position of the vicon
-      Eigen::Matrix<double, 4, 1> q;
-      Eigen::Matrix<double, 3, 1> p;
+      Eigen::Vector4d q;
+      Eigen::Vector3d p;
       q << s3->transform.rotation.x, s3->transform.rotation.y, s3->transform.rotation.z, s3->transform.rotation.w;
       p << s3->transform.translation.x, s3->transform.translation.y, s3->transform.translation.z;
       // feed it!
@@ -242,8 +242,8 @@ int main(int argc, char **argv) {
     geometry_msgs::PoseStamped::ConstPtr s4 = m.instantiate<geometry_msgs::PoseStamped>();
     if (s4 != nullptr && m.getTopic() == topic_vicon) {
       // load orientation and position of the vicon
-      Eigen::Matrix<double, 4, 1> q;
-      Eigen::Matrix<double, 3, 1> p;
+      Eigen::Vector4d q;
+      Eigen::Vector3d p;
       q << s4->pose.orientation.x, s4->pose.orientation.y, s4->pose.orientation.z, s4->pose.orientation.w;
       p << s4->pose.position.x, s4->pose.position.y, s4->pose.position.z;
       // feed it!

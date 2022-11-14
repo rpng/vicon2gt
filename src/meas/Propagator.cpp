@@ -18,7 +18,7 @@
  */
 #include "Propagator.h"
 
-void Propagator::feed_imu(double timestamp, Eigen::Matrix<double, 3, 1> wm, Eigen::Matrix<double, 3, 1> am) {
+void Propagator::feed_imu(double timestamp, Eigen::Vector3d wm, Eigen::Vector3d am) {
 
   // Create our imu data object
   IMUDATA data;
@@ -30,8 +30,7 @@ void Propagator::feed_imu(double timestamp, Eigen::Matrix<double, 3, 1> wm, Eige
   imu_data.emplace_back(data);
 }
 
-bool Propagator::propagate(double time0, double time1, Eigen::Matrix<double, 3, 1> bg_lin, Eigen::Matrix<double, 3, 1> ba_lin,
-                           CpiV1 &integration) {
+bool Propagator::propagate(double time0, double time1, Eigen::Vector3d bg_lin, Eigen::Vector3d ba_lin, CpiV1 &integration) {
 
   // First lets construct an IMU vector of measurements we need
   std::vector<IMUDATA> prop_data;

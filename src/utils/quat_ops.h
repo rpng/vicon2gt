@@ -82,8 +82,8 @@
  * @param[in] rot 3x3 rotation matrix
  * @return 4x1 quaternion
  */
-inline Eigen::Matrix<double, 4, 1> rot_2_quat(const Eigen::Matrix<double, 3, 3> &rot) {
-  Eigen::Matrix<double, 4, 1> q;
+inline Eigen::Vector4d rot_2_quat(const Eigen::Matrix3d &rot) {
+  Eigen::Vector4d q;
   double T = rot.trace();
   if ((rot(0, 0) >= T) && (rot(0, 0) >= rot(1, 1)) && (rot(0, 0) >= rot(2, 2))) {
     // cout << "case 1- " << endl;
@@ -133,8 +133,8 @@ inline Eigen::Matrix<double, 4, 1> rot_2_quat(const Eigen::Matrix<double, 3, 3> 
  * @param[in] w 3x1 vector to be made a skew-symmetric
  * @return 3x3 skew-symmetric matrix
  */
-inline Eigen::Matrix<double, 3, 3> skew_x(const Eigen::Matrix<double, 3, 1> &w) {
-  Eigen::Matrix<double, 3, 3> w_x;
+inline Eigen::Matrix3d skew_x(const Eigen::Vector3d &w) {
+  Eigen::Matrix3d w_x;
   w_x << 0, -w(2), w(1), w(2), 0, -w(0), -w(1), w(0), 0;
   return w_x;
 }
@@ -150,8 +150,8 @@ inline Eigen::Matrix<double, 3, 3> skew_x(const Eigen::Matrix<double, 3, 1> &w) 
  * @param[in] q JPL quaternion
  * @return 3x3 SO(3) rotation matrix
  */
-inline Eigen::Matrix<double, 3, 3> quat_2_Rot(const Eigen::Matrix<double, 4, 1> &q) {
-  Eigen::Matrix<double, 3, 3> q_x = skew_x(q.block(0, 0, 3, 1));
+inline Eigen::Matrix3d quat_2_Rot(const Eigen::Vector4d &q) {
+  Eigen::Matrix3d q_x = skew_x(q.block(0, 0, 3, 1));
   Eigen::MatrixXd Rot = (2 * std::pow(q(3, 0), 2) - 1) * Eigen::MatrixXd::Identity(3, 3) - 2 * q(3, 0) * q_x +
                         2 * q.block(0, 0, 3, 1) * (q.block(0, 0, 3, 1).transpose());
   return Rot;
@@ -178,9 +178,9 @@ inline Eigen::Matrix<double, 3, 3> quat_2_Rot(const Eigen::Matrix<double, 4, 1> 
  * @param[in] p Second JPL quaternion
  * @return 4x1 resulting p*q quaternion
  */
-inline Eigen::Matrix<double, 4, 1> quat_multiply(const Eigen::Matrix<double, 4, 1> &q, const Eigen::Matrix<double, 4, 1> &p) {
-  Eigen::Matrix<double, 4, 1> q_t;
-  Eigen::Matrix<double, 4, 4> Qm;
+inline Eigen::Vector4d quat_multiply(const Eigen::Vector4d &q, const Eigen::Vector4d &p) {
+  Eigen::Vector4d q_t;
+  Eigen::Matrix4d Qm;
   // create big L matrix
   Qm.block(0, 0, 3, 3) = q(3, 0) * Eigen::MatrixXd::Identity(3, 3) - skew_x(q.block(0, 0, 3, 1));
   Qm.block(0, 3, 3, 1) = q.block(0, 0, 3, 1);
@@ -203,8 +203,8 @@ inline Eigen::Matrix<double, 4, 1> quat_multiply(const Eigen::Matrix<double, 4, 
  * @param[in] w_x skew-symmetric matrix
  * @return 3x1 vector portion of skew
  */
-inline Eigen::Matrix<double, 3, 1> vee(const Eigen::Matrix<double, 3, 3> &w_x) {
-  Eigen::Matrix<double, 3, 1> w;
+inline Eigen::Vector3d vee(const Eigen::Matrix3d &w_x) {
+  Eigen::Vector3d w;
   w << w_x(2, 1), w_x(0, 2), w_x(1, 0);
   return w;
 }
@@ -229,9 +229,9 @@ inline Eigen::Matrix<double, 3, 1> vee(const Eigen::Matrix<double, 3, 3> &w_x) {
  * @param[in] w 3x1 vector we will take the exponential of
  * @return SO(3) rotation matrix
  */
-inline Eigen::Matrix<double, 3, 3> exp_so3(const Eigen::Matrix<double, 3, 1> &w) {
+inline Eigen::Matrix3d exp_so3(const Eigen::Vector3d &w) {
   // get theta
-  Eigen::Matrix<double, 3, 3> w_x = skew_x(w);
+  Eigen::Matrix3d w_x = skew_x(w);
   double theta = w.norm();
   // Handle small angle values
   double A, B;
@@ -243,7 +243,7 @@ inline Eigen::Matrix<double, 3, 3> exp_so3(const Eigen::Matrix<double, 3, 1> &w)
     B = (1 - cos(theta)) / (theta * theta);
   }
   // compute so(3) rotation
-  Eigen::Matrix<double, 3, 3> R;
+  Eigen::Matrix3d R;
   if (theta == 0) {
     R = Eigen::MatrixXd::Identity(3, 3);
   } else {
@@ -265,7 +265,7 @@ inline Eigen::Matrix<double, 3, 3> exp_so3(const Eigen::Matrix<double, 3, 1> &w)
  * @param[in] R 3x3 SO(3) rotation matrix
  * @return 3x1 in the se(3) space [omegax, omegay, omegaz]
  */
-inline Eigen::Matrix<double, 3, 1> log_so3(const Eigen::Matrix<double, 3, 3> &R) {
+inline Eigen::Vector3d log_so3(const Eigen::Matrix3d &R) {
   // magnitude of the skew elements (handle edge case where we sometimes have a>1...)
   double a = 0.5 * (R.trace() - 1);
   double theta = (a > 1) ? acos(1) : ((a < -1) ? acos(-1) : acos(a));
@@ -277,7 +277,7 @@ inline Eigen::Matrix<double, 3, 1> log_so3(const Eigen::Matrix<double, 3, 3> &R)
     D = theta / (2 * sin(theta));
   }
   // calculate the skew symetric matrix
-  Eigen::Matrix<double, 3, 3> w_x = D * (R - R.transpose());
+  Eigen::Matrix3d w_x = D * (R - R.transpose());
   // check if we are near the identity
   if (R != Eigen::MatrixXd::Identity(3, 3)) {
     Eigen::Vector3d vec;
@@ -442,8 +442,8 @@ inline Eigen::Matrix4d Inv_se3(const Eigen::Matrix4d &T) {
  * @param[in] q quaternion we want to change
  * @return inversed quaternion
  */
-inline Eigen::Matrix<double, 4, 1> Inv(Eigen::Matrix<double, 4, 1> q) {
-  Eigen::Matrix<double, 4, 1> qinv;
+inline Eigen::Vector4d Inv(Eigen::Vector4d q) {
+  Eigen::Vector4d qinv;
   qinv.block(0, 0, 3, 1) = -q.block(0, 0, 3, 1);
   qinv(3, 0) = q(3, 0);
   return qinv;
@@ -456,8 +456,8 @@ inline Eigen::Matrix<double, 4, 1> Inv(Eigen::Matrix<double, 4, 1> q) {
  * Estimation](http://mars.cs.umn.edu/tr/reports/Trawny05b.pdf).
  *
  */
-inline Eigen::Matrix<double, 4, 4> Omega(Eigen::Matrix<double, 3, 1> w) {
-  Eigen::Matrix<double, 4, 4> mat;
+inline Eigen::Matrix4d Omega(Eigen::Vector3d w) {
+  Eigen::Matrix4d mat;
   mat.block(0, 0, 3, 3) = -skew_x(w);
   mat.block(3, 0, 1, 3) = -w.transpose();
   mat.block(0, 3, 3, 1) = w;
@@ -470,7 +470,7 @@ inline Eigen::Matrix<double, 4, 4> Omega(Eigen::Matrix<double, 3, 1> w) {
  * @param q_t Quaternion to normalized
  * @return Normalized quaterion
  */
-inline Eigen::Matrix<double, 4, 1> quatnorm(Eigen::Matrix<double, 4, 1> q_t) {
+inline Eigen::Vector4d quatnorm(Eigen::Vector4d q_t) {
   if (q_t(3, 0) < 0) {
     q_t *= -1;
   }
@@ -489,13 +489,13 @@ inline Eigen::Matrix<double, 4, 1> quatnorm(Eigen::Matrix<double, 4, 1> q_t) {
  * @param w axis-angle
  * @return The left Jacobian of SO(3)
  */
-inline Eigen::Matrix<double, 3, 3> Jl_so3(Eigen::Matrix<double, 3, 1> w) {
+inline Eigen::Matrix3d Jl_so3(Eigen::Vector3d w) {
   double theta = w.norm();
   if (theta < 1e-12) {
     return Eigen::MatrixXd::Identity(3, 3);
   } else {
-    Eigen::Matrix<double, 3, 1> a = w / theta;
-    Eigen::Matrix<double, 3, 3> J = sin(theta) / theta * Eigen::MatrixXd::Identity(3, 3) + (1 - sin(theta) / theta) * a * a.transpose() +
+    Eigen::Vector3d a = w / theta;
+    Eigen::Matrix3d J = sin(theta) / theta * Eigen::MatrixXd::Identity(3, 3) + (1 - sin(theta) / theta) * a * a.transpose() +
                                     ((1 - cos(theta)) / theta) * skew_x(a);
     return J;
   }
@@ -511,6 +511,6 @@ inline Eigen::Matrix<double, 3, 3> Jl_so3(Eigen::Matrix<double, 3, 1> w) {
  * @param w axis-angle
  * @return The right Jacobian of SO(3)
  */
-inline Eigen::Matrix<double, 3, 3> Jr_so3(Eigen::Matrix<double, 3, 1> w) { return Jl_so3(-w); }
+inline Eigen::Matrix3d Jr_so3(Eigen::Vector3d w) { return Jl_so3(-w); }
 
 #endif /* QUAT_OPS_H */

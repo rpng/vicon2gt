@@ -30,8 +30,8 @@
 
 struct IMUDATA {
   double timestamp;
-  Eigen::Matrix<double, 3, 1> wm;
-  Eigen::Matrix<double, 3, 1> am;
+  Eigen::Vector3d wm;
+  Eigen::Vector3d am;
 };
 
 class Propagator {
@@ -46,10 +46,10 @@ public:
   }
 
   /// Our feed function for IMU measurements, will append to our historical vector
-  void feed_imu(double timestamp, Eigen::Matrix<double, 3, 1> wm, Eigen::Matrix<double, 3, 1> am);
+  void feed_imu(double timestamp, Eigen::Vector3d wm, Eigen::Vector3d am);
 
   /// This will propgate the preintegration class between the two requested timesteps
-  bool propagate(double time0, double time1, Eigen::Matrix<double, 3, 1> bg_lin, Eigen::Matrix<double, 3, 1> ba_lin, CpiV1 &integration);
+  bool propagate(double time0, double time1, Eigen::Vector3d bg_lin, Eigen::Vector3d ba_lin, CpiV1 &integration);
 
   /// Checks if we have bounding IMU poses around a given timestamp
   bool has_bounding_imu(double timestamp);

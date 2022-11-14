@@ -34,7 +34,7 @@ namespace gtsam {
  */
 class JPLQuaternion {
 private:
-  Eigen::Matrix<double, 4, 1> q_GtoI; ///< Rotation from global to IMU
+  Eigen::Vector4d q_GtoI; ///< Rotation from global to IMU
 
 public:
   enum { dimension = 3 };
@@ -46,10 +46,10 @@ public:
   JPLQuaternion(const JPLQuaternion &obj) { this->q_GtoI = obj.q_GtoI; }
 
   /// Construct from orientation
-  JPLQuaternion(const Eigen::Matrix<double, 4, 1> &q) : q_GtoI(q) {}
+  JPLQuaternion(const Eigen::Vector4d &q) : q_GtoI(q) {}
 
   /// Return rotation quaternion.
-  Eigen::Matrix<double, 4, 1> q() const { return q_GtoI; }
+  Eigen::Vector4d q() const { return q_GtoI; }
 
   /// Retract with optional derivatives (given correction)
   JPLQuaternion retract(const Vector3 &xi) const;
