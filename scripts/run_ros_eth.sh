@@ -10,17 +10,17 @@ source ${SCRIPT_DIR}/../../../devel/setup.bash
 
 # dataset locations
 bagnames=(
-#  "V1_01_easy"
-#  "V1_02_medium"
-#  "V1_03_difficult"
+  "V1_01_easy"
+  "V1_02_medium"
+  "V1_03_difficult"
   "V2_01_easy"
   "V2_02_medium"
   "V2_03_difficult"
 )
 topics=(
-# "/vicon/firefly_sbx/firefly_sbx "
-# "/vicon/firefly_sbx/firefly_sbx "
-# "/vicon/firefly_sbx/firefly_sbx "
+ "/vicon/firefly_sbx/firefly_sbx "
+ "/vicon/firefly_sbx/firefly_sbx "
+ "/vicon/firefly_sbx/firefly_sbx "
  "vicon/firefly_sbx/firefly_sbx"
  "vicon/firefly_sbx/firefly_sbx"
  "vicon/firefly_sbx/firefly_sbx"
