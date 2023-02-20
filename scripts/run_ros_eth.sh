@@ -58,6 +58,7 @@ roslaunch vicon2gt exp_eth.launch \
   topic_vicon:="${topics[i]}" \
   topic_imu:="/imu0" \
   folder:="$bag_path" \
+  stats_path_info:="/tmp/vicon2gt_info.txt" \
   stats_path_states:="$filename1" &> /dev/null
 
 # print out the time elapsed

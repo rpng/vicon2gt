@@ -44,18 +44,18 @@ int main(int argc, char **argv) {
   ros::Publisher pub_pathgt = nh.advertise<nav_msgs::Path>("/vicon2gt/groundtruth", 2);
 
   // Load the export path
-  bool save2file;
+  bool save_to_file;
   std::string path_states, path_states_gt, path_info;
   int state_freq;
   nh.param<std::string>("stats_path_states", path_states, "states.csv");
   nh.param<std::string>("stats_path_states_gt", path_states_gt, "gt.csv");
   nh.param<std::string>("stats_path_info", path_info, "vicon2gt_info.txt");
-  nh.param<bool>("save2file", save2file, false);
+  nh.param<bool>("save_to_file", save_to_file, false);
   nh.param<int>("state_freq", state_freq, 100);
   ROS_INFO("save path information...");
   ROS_INFO("    - state path: %s", path_states.c_str());
   ROS_INFO("    - info path: %s", path_info.c_str());
-  ROS_INFO("    - save to file: %d", (int)save2file);
+  ROS_INFO("    - save to file: %d", (int)save_to_file);
   ROS_INFO("    - state_freq: %d", state_freq);
 
   //===================================================================================
@@ -172,7 +172,7 @@ int main(int argc, char **argv) {
 
   // Finally, save to file all the information
   std::ofstream of_state;
-  if (save2file) {
+  if (save_to_file) {
 
     // save generated trajectory
     solver.write_to_file(path_states, path_info);
