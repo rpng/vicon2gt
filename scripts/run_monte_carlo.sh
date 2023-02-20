@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 # Source our workspace directory to load ENV variables
-source /home/patrick/workspace/catkin_ws_ov/devel/setup.bash
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+source ${SCRIPT_DIR}/../../../devel/setup.bash
 
 # varying level of noises
 noises=(
@@ -12,11 +13,10 @@ noises=(
     "0.10"
 )
 
-
 # location to save log files into
-save_path1="/home/patrick/github/pubs_data/pgeneva/2020_vicon2gt/algorithms"
-save_path2="/home/patrick/github/pubs_data/pgeneva/2020_vicon2gt/truths"
-log_path="/home/patrick/github/pubs_data/pgeneva/2020_vicon2gt/temp"
+save_path1="$SCRIPT_DIR/../results/simulation/algorithms"
+save_path2="$SCRIPT_DIR/../results/simulation/truths"
+log_path="$SCRIPT_DIR/../results/simulation/temp"
 
 
 #=============================================================
@@ -47,7 +47,12 @@ filename3="$save_path1/$run_name/simulation/${j}_states.txt"
 filename4="$save_path2/simulation.txt"
 
 # run our ROS launch file (note we send console output to terminator)
-roslaunch vicon2gt sim.launch save2file:=true stats_path_states:=$filename1 stats_path_gt:=$filename2 seed:=$((10#$j)) vicon_sigmas:="[${noises[h]},${noises[h]},${noises[h]},${noises[i]},${noises[i]},${noises[i]}]" &> /dev/null
+roslaunch vicon2gt sim.launch \
+  save2file:=true \
+  stats_path_states:=$filename1 \
+  stats_path_gt:=$filename2 \
+  seed:=$((10#$j)) \
+  vicon_sigmas:="[${noises[h]},${noises[h]},${noises[h]},${noises[i]},${noises[i]},${noises[i]}]" &> /dev/null
 
 # print out the time elapsed
 end_time="$(date -u +%s)"

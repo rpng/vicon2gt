@@ -4,4 +4,4 @@ Build
 *.*~
 cmake-build-debug
 .DS_Store
-
+results/
