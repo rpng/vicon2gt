@@ -496,7 +496,7 @@ inline Eigen::Matrix3d Jl_so3(Eigen::Vector3d w) {
   } else {
     Eigen::Vector3d a = w / theta;
     Eigen::Matrix3d J = sin(theta) / theta * Eigen::MatrixXd::Identity(3, 3) + (1 - sin(theta) / theta) * a * a.transpose() +
-                                    ((1 - cos(theta)) / theta) * skew_x(a);
+                        ((1 - cos(theta)) / theta) * skew_x(a);
     return J;
   }
 }

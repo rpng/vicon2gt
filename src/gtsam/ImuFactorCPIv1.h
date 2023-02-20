@@ -69,9 +69,8 @@ private:
 public:
   /// Construct from the two linking JPLNavStates, preingration measurement, and its covariance
   ImuFactorCPIv1(Key state_i, Key state_j, Key rotxy, Eigen::Matrix<double, 15, 15> covariance, double deltatime, double grav_m,
-                 Vector3 alpha, Vector3 beta, Vector4 q_KtoK1, Bias3 ba_lin, Bias3 bg_lin, Eigen::Matrix3d J_q,
-                 Eigen::Matrix3d J_beta, Eigen::Matrix3d J_alpha, Eigen::Matrix3d H_beta,
-                 Eigen::Matrix3d H_alpha)
+                 Vector3 alpha, Vector3 beta, Vector4 q_KtoK1, Bias3 ba_lin, Bias3 bg_lin, Eigen::Matrix3d J_q, Eigen::Matrix3d J_beta,
+                 Eigen::Matrix3d J_alpha, Eigen::Matrix3d H_beta, Eigen::Matrix3d H_alpha)
       : NoiseModelFactor3<JPLNavState, JPLNavState, RotationXY>(noiseModel::Gaussian::Covariance(covariance), state_i, state_j, rotxy) {
 
     // Measurement
