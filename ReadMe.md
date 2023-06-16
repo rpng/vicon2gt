@@ -89,8 +89,10 @@ Note that we use the system Eigen since we want to link with packages which also
 ```cmd
 sudo apt install libboost-all-dev libeigen3-dev libmetis-dev
 git clone https://github.com/borglab/gtsam
-mkdir gtsam/build/
-cd gtsam/build/
+cd gtsam
+git checkout 4.2a5 # supported by 4.2a5 version of GTSAM
+mkdir build/
+cd build/
 cmake -DCMAKE_BUILD_TYPE=Release -DGTSAM_USE_SYSTEM_EIGEN=ON ..
 make -j6
 sudo make -j6 install
