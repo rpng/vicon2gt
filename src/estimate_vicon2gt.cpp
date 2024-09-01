@@ -50,9 +50,10 @@ int main(int argc, char **argv) {
 
   // Load the bag path
   bool save_to_file, use_manual_sigmas;
-  std::string path_to_bag, path_states, path_info;
+  std::string path_to_bag, path_bag_groundtruth, path_states, path_info;
   int state_freq;
   nh.param<std::string>("path_bag", path_to_bag, "bagfile.bag");
+  nh.param<std::string>("path_bag_gt", path_bag_groundtruth, "bagfile.bag");
   nh.param<std::string>("stats_path_states", path_states, "gt_states.csv");
   nh.param<std::string>("stats_path_info", path_info, "vicon2gt_info.txt");
   nh.param<bool>("save_to_file", save_to_file, save_to_file);
@@ -60,6 +61,7 @@ int main(int argc, char **argv) {
   nh.param<int>("state_freq", state_freq, 100);
   ROS_INFO("rosbag information...");
   ROS_INFO("    - bag path: %s", path_to_bag.c_str());
+  ROS_INFO("    - bag gt path: %s", path_bag_groundtruth.c_str());
   ROS_INFO("    - state path: %s", path_states.c_str());
   ROS_INFO("    - info path: %s", path_info.c_str());
   ROS_INFO("    - save to file: %d", (int)save_to_file);
@@ -77,28 +79,44 @@ int main(int argc, char **argv) {
   //===================================================================================
 
   // Load rosbag here, and find messages we can play
-  rosbag::Bag bag;
+  rosbag::Bag bag, bag_gt;
   bag.open(path_to_bag, rosbag::bagmode::Read);
+  bag_gt.open(path_bag_groundtruth, rosbag::bagmode::Read);
 
   // We should load the bag as a view
   // Here we go from beginning of the bag to the end of the bag
-  rosbag::View view_full;
-  rosbag::View view;
+  rosbag::View view, view_gt;
 
   // Start a few seconds in from the full view time
   // If we have a negative duration then use the full bag length
-  view_full.addQuery(bag, rosbag::TopicQuery({topic_imu, topic_vicon}));
-  ros::Time time_init = view_full.getBeginTime();
-  time_init += ros::Duration(bag_start);
-  ros::Time time_finish = (bag_durr < 0) ? view_full.getEndTime() : time_init + ros::Duration(bag_durr);
-  ROS_INFO("loading rosbag into memory...");
-  ROS_INFO("    - time start = %.6f", time_init.toSec());
-  ROS_INFO("    - time end   = %.6f", time_finish.toSec());
-  ROS_INFO("    - duration   = %.2f (secs)", time_finish.toSec() - time_init.toSec());
-  view.addQuery(bag, rosbag::TopicQuery({topic_imu, topic_vicon}), time_init, time_finish);
+  {
+    rosbag::View view_full;
+    view_full.addQuery(bag, rosbag::TopicQuery({topic_imu, topic_vicon}));
+    ros::Time time_init = view_full.getBeginTime();
+    time_init += ros::Duration(bag_start);
+    ros::Time time_finish = (bag_durr < 0) ? view_full.getEndTime() : time_init + ros::Duration(bag_durr);
+    ROS_INFO("loading rosbag into memory...");
+    ROS_INFO("    - time start = %.6f", time_init.toSec());
+    ROS_INFO("    - time end   = %.6f", time_finish.toSec());
+    ROS_INFO("    - duration   = %.2f (secs)", time_finish.toSec() - time_init.toSec());
+    view.addQuery(bag, rosbag::TopicQuery({topic_imu}), time_init, time_finish);
+  }
+  {
+    rosbag::View view_full;
+    view_full.addQuery(bag_gt, rosbag::TopicQuery({topic_imu, topic_vicon}));
+    ros::Time time_init = view_full.getBeginTime();
+    time_init += ros::Duration(bag_start);
+    ros::Time time_finish = (bag_durr < 0) ? view_full.getEndTime() : time_init + ros::Duration(bag_durr);
+    ROS_INFO("loading rosbag gt into memory...");
+    ROS_INFO("    - time start = %.6f", time_init.toSec());
+    ROS_INFO("    - time end   = %.6f", time_finish.toSec());
+    ROS_INFO("    - duration   = %.2f (secs)", time_finish.toSec() - time_init.toSec());
+    view_gt.addQuery(bag_gt, rosbag::TopicQuery({topic_vicon}), time_init, time_finish);
+  }
+  ros::Time time_init = view_gt.getBeginTime();
 
   // Check to make sure we have data to play
-  if (view.size() == 0) {
+  if (view.size() == 0 && view_gt.size() == 0) {
     ROS_ERROR("No messages to play on specified topics.  Exiting.");
     ROS_ERROR("IMU TOPIC: %s", topic_imu.c_str());
     ROS_ERROR("VIC TOPIC: %s", topic_vicon.c_str());
@@ -177,6 +195,12 @@ int main(int argc, char **argv) {
       ct_imu++;
       continue;
     }
+  }
+  for (const rosbag::MessageInstance &m : view_gt) {
+
+    // If ros is wants us to stop, break out
+    if (!ros::ok())
+      break;
 
     // Handle VICON messages
     nav_msgs::Odometry::ConstPtr s2 = m.instantiate<nav_msgs::Odometry>();
