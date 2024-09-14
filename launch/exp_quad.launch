@@ -34,8 +34,8 @@
         <param name="stats_path_info"    type="string" value="$(arg stats_path_info)" />
 
         <!-- world parameters -->
-        <rosparam param="R_BtoI">[0.933126, -0.359542, -0.00242544, 0.0187511, 0.0553994, -0.998288, 0.359061, 0.931483, 0.0584364]</rosparam>
-        <rosparam param="p_BinI">[-0.0333419, -0.0383644, -0.0241857]</rosparam>
+        <rosparam param="R_BtoI">[-0.950608, 0.310335, -0.00610614, 0.310351, 0.950621, -0.00174365, 0.00526351, -0.00355258, -0.99998]</rosparam>
+        <rosparam param="p_BinI">[-0.00431808, 0.0700023, -0.113658]</rosparam>
         <rosparam param="R_GtoV">[1, 0, 0, 0, 1, 0, 0, 0, 1]</rosparam>
         <param name="gravity_magnitude"          type="double" value="9.81" />
         <param name="toff_imu_to_vicon"          type="double" value="0.0122739" />
@@ -57,10 +57,16 @@
         <param name="accelerometer_random_walk"    type="double"   value="0.00041327852" /> -->
         
         <!-- vi-sensor -->
-        <param name="gyroscope_noise_density"      type="double"   value="1.6968e-03" />
-        <param name="gyroscope_random_walk"        type="double"   value="1.9393e-05" />
-        <param name="accelerometer_noise_density"  type="double"   value="2.0000e-2" />
-        <param name="accelerometer_random_walk"    type="double"   value="3.0000e-3" />
+<!--         <param name="gyroscope_noise_density"      type="double"   value="1.6968e-03" /> -->
+<!--         <param name="gyroscope_random_walk"        type="double"   value="1.9393e-05" /> -->
+<!--         <param name="accelerometer_noise_density"  type="double"   value="2.0000e-2" /> -->
+<!--         <param name="accelerometer_random_walk"    type="double"   value="3.0000e-3" /> -->
+
+        <!-- ghost imu noise (acc_noise, gyro_noise X 2 times)-->
+        <param name="gyroscope_noise_density"      type="double"   value="2.6849e-04" />
+        <param name="gyroscope_random_walk"        type="double"   value="1.0452e-06" />
+        <param name="accelerometer_noise_density"  type="double"   value="3.7971e-04" />
+        <param name="accelerometer_random_walk"    type="double"   value="4.6290e-06" />
 
 
     </node>
